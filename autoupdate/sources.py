@@ -4,6 +4,7 @@ Identifies differences and constructs a set of recommended actions to bring avra
 with the local repository.
 """
 
+from itertools import chain
 import os
 
 from .avrae import (
@@ -63,6 +64,11 @@ class LocalAliasMatchesAvrae(_AliasComparisonResultWithAlias):
     The local .alias file matches the current active version code in the avrae collection.
     """
 
+class LocalAliasDocsMatchAvrae(_AliasComparisonResultWithAlias):
+    """
+    The local doc markdown file matches the current docs for the alias in the avrae collection.
+    """
+
 
 class LocalAliasMissing(_AliasComparisonResultWithAlias):
     """
@@ -70,11 +76,22 @@ class LocalAliasMissing(_AliasComparisonResultWithAlias):
     in the repository at its expected location.
     """
 
+class LocalAliasDocsMissing(_AliasComparisonResultWithAlias):
+    """
+    No corresponding markdown file was found for the alias.
+    """
+
 
 class LocalAliasDoesNotMatchAvrae(_AliasComparisonResultWithAlias):
     """
     The local .alias file contains code which does not match the active version on avrae.
     """
+
+class LocalAliasDocsDoNotMatchAvrae(_AliasComparisonResultWithAlias):
+    """
+    The local doc markdown file does not match the current docs in the avrae collection.
+    """
+
 
 # Snippets
 
@@ -103,6 +120,11 @@ class LocalSnippetMatchesAvrae(_SnippetComparisonResultWithSnippet):
     The local .snippet file matches the current active version code in the avrae collection.
     """
 
+class LocalSnippetDocsMatchAvrae(_SnippetComparisonResultWithSnippet):
+    """
+    The local doc markdown file matches the current docs for the snippet in the avrae collection.
+    """
+
 
 class LocalSnippetMissing(_SnippetComparisonResultWithSnippet):
     """
@@ -110,10 +132,20 @@ class LocalSnippetMissing(_SnippetComparisonResultWithSnippet):
     in the repository at its expected location.
     """
 
+class LocalSnippetDocsMissing(_SnippetComparisonResultWithSnippet):
+    """
+    No corresponding markdown file was found for the alias.
+    """
+
 
 class LocalSnippetDoesNotMatchAvrae(_SnippetComparisonResultWithSnippet):
     """
     The local .snippet file contains code which does not match the active version on avrae.
+    """
+
+class LocalSnippetDocsDoNotMatchAvrae(_SnippetComparisonResultWithSnippet):
+    """
+    The local doc markdown file does not match the current docs in the avrae collection.
     """
 
 # GVars
@@ -164,25 +196,51 @@ def _compare_aliases(
     """
     Generate AliasComparisonResults for the given Collection
     """
-    def build_alias_map(path_segments: list, alias: Alias):
+    def build_alias_map(path_segments: list, alias: Alias) -> dict[str: Alias]:
         alias_map = {}
-        file_name = alias.name + '.alias'
+        file_name = alias.name
         alias_map[os.path.join(*path_segments, alias.name, file_name)] = alias
         for subalias in alias.subcommands or []:
             alias_map.update(build_alias_map(
                 path_segments + [alias.name], subalias))
         return alias_map
 
-    def build_alias_comparison(alias_path: str, alias: Alias) -> _AliasComparisonResult:
-        if not os.path.exists(alias_path):
-            return LocalAliasMissing(alias_path, alias)
+    def build_alias_comparison(
+        alias_base_file_path: str,
+        alias: Alias
+    ) -> list[_AliasComparisonResult]:
+        results: list[_AliasComparisonResult] = []
+
+        # Check the alias code
+        alias_file_path = alias_base_file_path + '.alias'
+        if not os.path.exists(alias_file_path):
+            results.append(LocalAliasMissing(alias_file_path, alias))
         else:
-            with open(alias_path, mode='r', encoding='utf-8') as alias_file:
+            with open(alias_file_path, mode='r', encoding='utf-8') as alias_file:
                 local_code = alias_file.read()
                 if local_code == alias.code:
-                    return LocalAliasMatchesAvrae(alias_path, alias)
+                    results.append(LocalAliasMatchesAvrae(alias_file_path, alias))
                 else:
-                    return LocalAliasDoesNotMatchAvrae(alias_path, alias)
+                    results.append(LocalAliasDoesNotMatchAvrae(alias_file_path, alias))
+
+        # Check the alias docs
+        valid_doc_files = [
+            alias_base_file_path + '.md',
+            alias_base_file_path + '.markdown',
+            alias_base_file_path + '.MARKDOWN'
+        ]
+        alias_doc_path = next(filter(os.path.exists, valid_doc_files), None)
+        if not alias_doc_path:
+            results.append(LocalAliasDocsMissing(valid_doc_files[0], alias))
+        else:
+            with open(alias_doc_path, mode='r', encoding='utf-8') as doc_file:
+                local_docs = doc_file.read()
+                if local_docs == alias.docs:
+                    results.append(LocalAliasDocsMatchAvrae(alias_doc_path, alias))
+                else:
+                    results.append(LocalAliasDocsDoNotMatchAvrae(alias_doc_path, alias))
+
+        return results
 
     def find_aliases(base_path: os.PathLike) -> list[os.PathLike]:
         found_aliases = []
@@ -195,18 +253,28 @@ def _compare_aliases(
 
     path_segments = [base_path, collection.name]
     aliases_map: dict[str, Alias] = {}
+    # Build a map of file base paths to existing avrae aliases
     for alias in collection.aliases or []:
         aliases_map.update(build_alias_map(path_segments, alias))
-    comparison_results = [build_alias_comparison(alias_path, alias) for (
-        alias_path, alias) in aliases_map.items()]
+    # Compare local sources to the avrae aliases
+    comparison_results = list(
+        chain(*[
+            build_alias_comparison(alias_path, alias) for (alias_path, alias) in aliases_map.items()
+            ])
+    )
 
+    # Find all '.alias' files in the current collection in the local filesystem
     local_aliases = find_aliases(base_path=os.path.join(*path_segments))
-    full_local_aliases = (os.path.join(*path_segments, local_alias)
-                          for local_alias in local_aliases)
-    missing_aliases = (
-        alias for alias in full_local_aliases if not alias in aliases_map)
-    comparison_results += [LocalAliasNotFoundInAvrae(alias)
-                           for alias in missing_aliases]
+    full_local_aliases = (
+        os.path.join(*path_segments, local_alias) for local_alias in local_aliases
+    )
+    # Build a list of expected '.alias' files from the avrae collection
+    avrae_alias_files = [alias + '.alias' for alias in aliases_map]
+    # Report any local aliases not known to avrae
+    for alias in full_local_aliases:
+        if not alias in avrae_alias_files:
+            comparison_results.append(LocalAliasNotFoundInAvrae(alias))
+
     return comparison_results
 
 
@@ -217,16 +285,42 @@ def _compare_snippets(
     """
     Generate SnippetComparisonResults for the given Collection
     """
-    def build_snippet_comparison(snippet_path: str, snippet: Snippet) -> _AliasComparisonResult:
+    def build_snippet_comparison(
+        snippet_base_file_path: str,
+        snippet: Snippet
+    ) -> list[_SnippetComparisonResult]:
+        results: list[_SnippetComparisonResult] = []
+
+        # Check snippet code
+        snippet_path = snippet_base_file_path + '.snippet'
         if not os.path.exists(snippet_path):
-            return LocalSnippetMissing(snippet_path, snippet)
+            results.append(LocalSnippetMissing(snippet_path, snippet))
         else:
             with open(snippet_path, mode='r', encoding='utf-8') as snippet_file:
                 local_code = snippet_file.read()
                 if local_code == snippet.code:
-                    return LocalSnippetMatchesAvrae(snippet_path, snippet)
+                    results.append(LocalSnippetMatchesAvrae(snippet_path, snippet))
                 else:
-                    return LocalSnippetDoesNotMatchAvrae(snippet_path, snippet)
+                    results.append(LocalSnippetDoesNotMatchAvrae(snippet_path, snippet))
+
+        # Check snippet docs
+        valid_doc_files = [
+            snippet_base_file_path + '.md',
+            snippet_base_file_path + '.markdown',
+            snippet_base_file_path + '.MARKDOWN'
+        ]
+        snippet_doc_path = next(filter(os.path.exists, valid_doc_files), None)
+        if not snippet_doc_path:
+            results.append(LocalSnippetDocsMissing(valid_doc_files[0], snippet))
+        else:
+            with open(snippet_doc_path, mode='r', encoding='utf-8') as doc_file:
+                local_docs = doc_file.read()
+                if local_docs == snippet.docs:
+                    results.append(LocalSnippetDocsMatchAvrae(snippet_doc_path, snippet))
+                else:
+                    results.append(LocalSnippetDocsDoNotMatchAvrae(snippet_doc_path, snippet))
+
+        return results
 
     def find_snippets(base_path: os.PathLike) -> list[os.PathLike]:
         found_snippets = []
@@ -237,21 +331,33 @@ def _compare_snippets(
                                for filename in filenames if filename.endswith('.snippet')]
         return found_snippets
 
+    # Build a map of file base paths to existing avrae snippets
     snippets_directory = (base_path / collection.name / 'snippets')
-    snippet_paths = ((os.path.join(snippets_directory, snippet.name +
-                     '.snippet'), snippet) for snippet in collection.snippets)
-    snippets_map = {snippet_path: snippet for (
-        snippet_path, snippet) in snippet_paths}
-    comparision_results = [build_snippet_comparison(snippet_path, snippet) for (
-        snippet_path, snippet) in snippets_map.items()]
+    snippet_base_file_paths = (
+        (os.path.join(snippets_directory, snippet.name), snippet) for snippet in collection.snippets
+    )
+    snippets_map = {snippet_path: snippet for (snippet_path, snippet) in snippet_base_file_paths}
+    # Compare local sources to the avrae snippets
+    comparision_results = list(
+        chain(*[
+            build_snippet_comparison(snippet_path, snippet) \
+                for (snippet_path, snippet) in snippets_map.items()
+            ]
+        )
+    )
 
+    # Find all '.snippet' files in the current collection in the local filesystem
     local_snippets = find_snippets(base_path=snippets_directory)
-    full_local_snippets = (os.path.normpath(os.path.join(
-        snippets_directory, local_snippet)) for local_snippet in local_snippets)
-    missing_snippets = (
-        snippet for snippet in full_local_snippets if not snippet in snippets_map)
-    comparision_results += [LocalSnippetNotFoundInAvrae(
-        snippet) for snippet in missing_snippets]
+    full_local_snippets = (
+        os.path.normpath(os.path.join(snippets_directory, local_snippet)) \
+            for local_snippet in local_snippets
+    )
+    # Build a list of expected '.snippet' files from the avrae collection
+    avrae_snippet_files = [snippet + '.snippet' for snippet in snippets_map]
+    # Report any local aliases not known to avrae
+    for snippet in full_local_snippets:
+        if not snippet in avrae_snippet_files:
+            comparision_results.append(LocalSnippetNotFoundInAvrae(snippet))
 
     return comparision_results
 
