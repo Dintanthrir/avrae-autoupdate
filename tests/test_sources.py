@@ -2,7 +2,9 @@
 Tests for sources.py
 """
 
-from autoupdate.avrae import Collection, Gvar
+import os
+from unittest.mock import Mock
+from autoupdate.avrae import Alias, AvraeClient, CodeVersion, Collection, Gvar, Snippet
 from autoupdate.sources import (LocalAliasDoesNotMatchAvrae,
                                 LocalAliasDocsDoNotMatchAvrae,
                                 LocalAliasMatchesAvrae,
@@ -183,3 +185,338 @@ def test_compare_gvars(tmp_path):
         LocalGvarMissing(
             (tmp_path / 'gvars' / 'not-found.gvar').as_posix(), gvars[2]),
     ]
+
+# ComparisonResults
+
+# Aliases
+
+def test_local_alias_not_found_in_avrae(tmp_path):
+    alias_path = tmp_path / 'test.alias'
+    result = LocalAliasNotFoundInAvrae(alias_path)
+    assert 'test.alias does not exist in Avrae.' in result.summary()
+
+def test_local_alias_matches_avrae(tmp_path):
+    alias = Alias(
+        name="test-alias",
+        code="current code",
+        collection_id='c011ec7104',
+        id='a11a5',
+        docs="docs",
+        versions=[],
+        entitlements=[],
+        subcommand_ids=[],
+        subcommands=[],
+        parent_id=None,
+    )
+    alias_path = tmp_path / 'test-alias.alias'
+    result = LocalAliasMatchesAvrae(alias_path, alias)
+    assert 'test-alias.alias matches Avrae.' in result.summary()
+
+def test_local_alias_docs_match_avrae(tmp_path):
+    alias = Alias(
+        name="test-alias",
+        code="current code",
+        collection_id='c011ec7104',
+        id='a11a5',
+        docs="docs",
+        versions=[],
+        entitlements=[],
+        subcommand_ids=[],
+        subcommands=[],
+        parent_id=None,
+    )
+    docs_path = tmp_path / 'test-alias.md'
+    result = LocalAliasDocsMatchAvrae(docs_path, alias)
+    assert 'test-alias.md matches Avrae.' in result.summary()
+
+def test_local_alias_missing(tmp_path):
+    alias = Alias(
+        name="test-alias",
+        code="current code",
+        collection_id='c011ec7104',
+        id='a11a5',
+        docs="docs",
+        versions=[],
+        entitlements=[],
+        subcommand_ids=[],
+        subcommands=[],
+        parent_id=None,
+    )
+    alias_path = tmp_path / 'test-alias.alias'
+    result = LocalAliasMissing(alias_path, alias)
+    assert 'test-alias(a11a5) has no matching .alias file' in result.summary()
+
+    assert not os.path.exists(alias_path)
+    result.apply()
+    assert os.path.exists(alias_path)
+    with open(alias_path, mode='r', encoding='utf-8') as alias_file:
+        assert alias_file.read() == alias.code
+
+def test_local_alias_docs_missing(tmp_path):
+    alias = Alias(
+        name="test-alias",
+        code="current code",
+        collection_id='c011ec7104',
+        id='a11a5',
+        docs="docs",
+        versions=[],
+        entitlements=[],
+        subcommand_ids=[],
+        subcommands=[],
+        parent_id=None,
+    )
+    docs_path = tmp_path / 'test-alias.md'
+    result = LocalAliasDocsMissing(docs_path, alias)
+    assert 'test-alias(a11a5) has no matching .md file' in result.summary()
+
+    assert not os.path.exists(docs_path)
+    result.apply()
+    assert os.path.exists(docs_path)
+    with open(docs_path, mode='r', encoding='utf-8') as alias_file:
+        assert alias_file.read() == alias.docs
+
+def test_local_alias_does_not_match_avrae(tmp_path):
+    alias = Alias(
+        name="test-alias",
+        code="current code",
+        collection_id='c011ec7104',
+        id='a11a5',
+        docs="docs",
+        versions=[],
+        entitlements=[],
+        subcommand_ids=[],
+        subcommands=[],
+        parent_id=None,
+    )
+    alias_path = tmp_path / 'test-alias.alias'
+    alias_path.write_text('new code')
+
+    result = LocalAliasDoesNotMatchAvrae(alias_path, alias)
+    assert 'test-alias.alias does not match the active version of test-alias(a11a5)' \
+        in result.summary()
+
+    # When local changes have introduced new code
+    client = Mock(AvraeClient)
+    client.recent_matching_version.return_value = None
+    client.create_new_code_version.return_value = 2
+    result.apply(client)
+    client.create_new_code_version.assert_called_once_with(item=alias, code='new code')
+    client.set_active_code_version.assert_called_once_with(item=alias, version=2)
+
+    # When avrae has been rolled back
+    client = Mock(AvraeClient)
+    client.recent_matching_version.return_value = CodeVersion(
+        content='new code',
+        version=1,
+        is_current=True,
+        created_at='2022-12-14T20:27:00.000000Z')
+    result.apply(client)
+    client.create_new_code_version.assert_not_called()
+
+def test_local_alias_docs_do_not_match_avrae(tmp_path):
+    alias = Alias(
+        name="test-alias",
+        code="current code",
+        collection_id='c011ec7104',
+        id='a11a5',
+        docs="docs",
+        versions=[],
+        entitlements=[],
+        subcommand_ids=[],
+        subcommands=[],
+        parent_id=None,
+    )
+    docs_path = tmp_path / 'test-alias.md'
+    docs_path.write_text('new docs')
+
+    result = LocalAliasDocsDoNotMatchAvrae(docs_path, alias)
+    assert 'test-alias.md does not match the current docs for test-alias(a11a5)' in result.summary()
+
+    client = Mock(AvraeClient)
+    result.apply(client)
+    client.update_docs.assert_called_once_with(item=alias, yaml='new docs')
+
+# Snippets
+
+def test_local_snippet_not_found_in_avrae(tmp_path):
+    snippet_path = tmp_path / 'test.snippet'
+    result = LocalSnippetNotFoundInAvrae(snippet_path)
+    assert 'test.snippet does not exist in Avrae.' in result.summary()
+
+def test_local_snippet_matches_avrae(tmp_path):
+    snippet = Snippet(
+        name="test",
+        code="snippet code",
+        collection_id='c011ec7104',
+        id='54177e7',
+        docs="docs",
+        versions=[],
+        entitlements=[],
+    )
+    snippet_path = tmp_path / 'test.snippet'
+    result = LocalSnippetMatchesAvrae(snippet_path, snippet)
+    assert 'test.snippet matches Avrae.' in result.summary()
+
+def test_local_snippet_docs_match_avrae(tmp_path):
+    snippet = Snippet(
+        name="test",
+        code="snippet code",
+        collection_id='c011ec7104',
+        id='54177e7',
+        docs="docs",
+        versions=[],
+        entitlements=[],
+    )
+    snippet_path = tmp_path / 'test.md'
+    result = LocalSnippetDocsMatchAvrae(snippet_path, snippet)
+    assert 'test.md matches Avrae.' in result.summary()
+
+def test_local_snippet_missing(tmp_path):
+    snippet = Snippet(
+        name="test",
+        code="snippet code",
+        collection_id='c011ec7104',
+        id='54177e7',
+        docs="docs",
+        versions=[],
+        entitlements=[],
+    )
+    snippet_path = tmp_path / 'test.snippet'
+    result = LocalSnippetMissing(snippet_path, snippet)
+    assert 'test(54177e7) has no matching .snippet file' in result.summary()
+
+    assert not os.path.exists(snippet_path)
+    result.apply()
+    assert os.path.exists(snippet_path)
+    with open(snippet_path, mode='r', encoding='utf-8') as alias_file:
+        assert alias_file.read() == snippet.code
+
+def test_local_snippet_docs_missing(tmp_path):
+    snippet = Snippet(
+        name="test",
+        code="snippet code",
+        collection_id='c011ec7104',
+        id='54177e7',
+        docs="docs",
+        versions=[],
+        entitlements=[],
+    )
+    docs_path = tmp_path / 'test.md'
+    result = LocalSnippetDocsMissing(docs_path, snippet)
+    assert 'test(54177e7) has no matching .md file' in result.summary()
+
+    assert not os.path.exists(docs_path)
+    result.apply()
+    assert os.path.exists(docs_path)
+    with open(docs_path, mode='r', encoding='utf-8') as alias_file:
+        assert alias_file.read() == snippet.docs
+
+def test_local_snippet_does_not_match_avrae(tmp_path):
+    snippet = Snippet(
+        name="test",
+        code="snippet code",
+        collection_id='c011ec7104',
+        id='54177e7',
+        docs="docs",
+        versions=[],
+        entitlements=[],
+    )
+    snippet_path = tmp_path / 'test.snippet'
+    snippet_path.write_text('new code')
+
+    result = LocalSnippetDoesNotMatchAvrae(snippet_path, snippet)
+    assert 'test.snippet does not match the active version of test(54177e7)' \
+        in result.summary()
+
+    # When local changes have introduced new code
+    client = Mock(AvraeClient)
+    client.recent_matching_version.return_value = None
+    client.create_new_code_version.return_value = 2
+    result.apply(client)
+    client.create_new_code_version.assert_called_once_with(item=snippet, code='new code')
+    client.set_active_code_version.assert_called_once_with(item=snippet, version=2)
+
+    # When avrae has been rolled back
+    client = Mock(AvraeClient)
+    client.recent_matching_version.return_value = CodeVersion(
+        content='new code',
+        version=1,
+        is_current=True,
+        created_at='2022-12-14T20:27:00.000000Z')
+    result.apply(client)
+    client.create_new_code_version.assert_not_called()
+
+def test_local_snippet_docs_do_not_match_avrae(tmp_path):
+    snippet = Snippet(
+        name="test",
+        code="snippet code",
+        collection_id='c011ec7104',
+        id='54177e7',
+        docs="docs",
+        versions=[],
+        entitlements=[],
+    )
+    docs_path = tmp_path / 'test.md'
+    docs_path.write_text('new docs')
+
+    result = LocalSnippetDocsDoNotMatchAvrae(docs_path, snippet)
+    assert 'test.md does not match the current docs for test(54177e7)' in result.summary()
+
+    client = Mock(AvraeClient)
+    result.apply(client)
+    client.update_docs.assert_called_once_with(item=snippet, yaml='new docs')
+
+# Gvars
+
+def test_local_gvar_not_found_in_avrae(tmp_path):
+    gvar_path = tmp_path / 'test.gvar'
+    result = LocalGvarNotFoundInAvrae(gvar_path)
+    assert 'test.gvar is not mapped to an existing gvar in Avrae.' in result.summary()
+
+def test_local_gvar_matches_avrae(tmp_path):
+    gvar = Gvar(
+        owner='1234',
+        key='123abc',
+        owner_name='someone',
+        value='gvar code',
+        editors=[]
+    )
+    gvar_path = tmp_path / 'test.gvar'
+    result = LocalGvarMatchesAvrae(gvar_path, gvar)
+    assert 'test.gvar matches 123abc in Avrae.' in result.summary()
+
+def test_local_gvar_missing(tmp_path):
+    gvar = Gvar(
+        owner='1234',
+        key='123abc',
+        owner_name='someone',
+        value='gvar code',
+        editors=[]
+    )
+    gvar_path = tmp_path / 'test.gvar'
+    result = LocalGvarMissing(gvar_path, gvar)
+    assert 'Gvar 123abc has no matching .gvar file' in result.summary()
+
+    assert not os.path.exists(gvar_path)
+    result.apply()
+    assert os.path.exists(gvar_path)
+    with open(gvar_path, mode='r', encoding='utf-8') as gvar_file:
+        assert gvar_file.read() == gvar.value
+
+
+def test_local_gvar_does_not_match_avrae(tmp_path):
+    gvar = Gvar(
+        owner='1234',
+        key='123abc',
+        owner_name='someone',
+        value='gvar code',
+        editors=[]
+    )
+    gvar_path = tmp_path / 'test.gvar'
+    gvar_path.write_text('new gvar code')
+    result = LocalGvarDoesNotMatchAvrae(gvar_path, gvar)
+    assert 'test.gvar does not match 123abc in Avrae' in result.summary()
+
+    client = Mock(AvraeClient)
+    result.apply(client)
+    client.update_gvar.assert_called_once_with(gvar=gvar, value='new gvar code')

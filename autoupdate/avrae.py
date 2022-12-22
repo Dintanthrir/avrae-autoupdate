@@ -325,7 +325,7 @@ class AvraeClient():
             code=item.code
         )
 
-    def create_new_code_version(self, item: Alias | Snippet) -> CodeVersion:
+    def create_new_code_version(self, item: Alias | Snippet, code: str) -> CodeVersion:
         """
         Creates a new code version containing the item's current code.
         """
@@ -338,7 +338,7 @@ class AvraeClient():
             },
             timeout=AVRAE_API_TIMEOUT,
             json={
-                'content': item.code
+                'content': code
             }
         )
         response.raise_for_status()
@@ -408,7 +408,7 @@ class AvraeClient():
             return _alias_from_data(response_data['data'])
         return _snippet_from_data(response_data['data'])
 
-    def update_gvar(self, gvar: Gvar):
+    def update_gvar(self, gvar: Gvar, value: str):
         """
         Updates the contents of the given gvar.
         """
@@ -420,7 +420,7 @@ class AvraeClient():
             },
             timeout=AVRAE_API_TIMEOUT,
             json={
-                'value': gvar.value
+                'value': value
             }
         )
         response.raise_for_status()

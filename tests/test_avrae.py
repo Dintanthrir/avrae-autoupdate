@@ -3,7 +3,6 @@ import os
 from autoupdate.avrae import (
     AvraeClient,
     CodeVersion,
-    Collection,
     Alias,
     Gvar,
     Snippet,
@@ -255,7 +254,7 @@ def test_avrae_client_create_new_code_version(requests_mock):
     client = AvraeClient(api_key=API_KEY, collection_ids=[])
     alias = Alias(
         name="test-alias",
-        code="new code",
+        code="old code",
         collection_id='c011ec7104',
         id='a11a5',
         docs="docs",
@@ -278,7 +277,7 @@ def test_avrae_client_create_new_code_version(requests_mock):
             }
         }
     )
-    version = client.create_new_code_version(item=alias)
+    version = client.create_new_code_version(item=alias, code='new code')
     assert len(requests_mock.request_history) == 1
     assert version == CodeVersion(
         version=2,
@@ -352,10 +351,10 @@ def test_avrae_client_update_gvar(requests_mock):
         request_headers={'Authorization': API_KEY},
         text='Gvar updated.'
     )
-    client.update_gvar(gvar)
+    client.update_gvar(gvar, value='new code')
     assert len(requests_mock.request_history) == 1
     assert requests_mock.request_history[0].json() == {
-        'value': gvar.value
+        'value': 'new code'
     }
 
 def test_update_docs(requests_mock):

@@ -4,38 +4,56 @@ Identifies differences and constructs a set of recommended actions to bring avra
 with the local repository.
 """
 
+from abc import ABC, abstractmethod
 from itertools import chain
 import os
 
 from .avrae import (
     Alias,
+    AvraeClient,
     Collection,
     Gvar,
     Snippet,
 )
 
 
-class ComparisonResult:
+class ComparisonResult(ABC):
     """
     The result of a comparison between a single resource in the current repository and the avrae API
-    Each result can explain any difference in state between the two locations
-    Applying a result attempt to bring the two locations into sync,
-      e.g. by updating an alias' contents
+    each result can report differences between the two locations.
     """
 
+    @abstractmethod
     def summary(self) -> str:
         """
         Returns a description of the difference between the local repository and avrae API.
         """
 
-    def apply(self):
-        """
-        Attempts to syncronize this resource in the local repository with avrae.
-        """
-
     def __eq__(self, other):
         return (isinstance(other, self.__class__)
                 and self.__dict__ == other.__dict__)
+
+class UpdatesAvrae(ABC):
+    """
+    A comparison result which can be resolved by applying changes to Avrae
+    """
+
+    @abstractmethod
+    def apply(self, client: AvraeClient):
+        """
+        Resolves a mismatch between local and avrae state by applying changes to avrae
+        """
+
+class UpdatesRepository(ABC):
+    """
+    A comparison results which can be resolved by applying changes to the local repository
+    """
+
+    @abstractmethod
+    def apply(self):
+        """
+        Resolves a mismatch between local and avrae sat by applying changes to the local repository
+        """
 
 # Aliases
 
@@ -49,8 +67,11 @@ class _AliasComparisonResult(ComparisonResult):
 class LocalAliasNotFoundInAvrae(_AliasComparisonResult):
     """
     A .alias file is present in the collection directory
-    but wad not found in the matching avrae collection.
+    but was not found in the matching avrae collection.
     """
+
+    def summary(self) -> str:
+        return f"Alias {self.alias_path} does not exist in Avrae."
 
 
 class _AliasComparisonResultWithAlias(_AliasComparisonResult):
@@ -64,33 +85,77 @@ class LocalAliasMatchesAvrae(_AliasComparisonResultWithAlias):
     The local .alias file matches the current active version code in the avrae collection.
     """
 
+    def summary(self) -> str:
+        return f"Alias {self.alias_path} matches Avrae."
+
 class LocalAliasDocsMatchAvrae(_AliasComparisonResultWithAlias):
     """
     The local doc markdown file matches the current docs for the alias in the avrae collection.
     """
 
+    def summary(self) -> str:
+        return f"Alias docs file {self.alias_path} matches Avrae."
 
-class LocalAliasMissing(_AliasComparisonResultWithAlias):
+
+class LocalAliasMissing(_AliasComparisonResultWithAlias, UpdatesRepository):
     """
     An alias was found in the avrae collection which has no corresponding .alias file
     in the repository at its expected location.
     """
 
-class LocalAliasDocsMissing(_AliasComparisonResultWithAlias):
+    def summary(self) -> str:
+        return f"Alias {self.alias.name}({self.alias.id}) has no matching .alias file at " \
+            f"{self.alias_path}."
+
+    def apply(self):
+        with open(self.alias_path, mode='w', encoding='utf-8') as alias_file:
+            alias_file.write(self.alias.code)
+
+class LocalAliasDocsMissing(_AliasComparisonResultWithAlias, UpdatesRepository):
     """
     No corresponding markdown file was found for the alias.
     """
 
+    def summary(self) -> str:
+        return f"Alias {self.alias.name}({self.alias.id}) has no matching .md file at " \
+            "{self.alias_path}."
 
-class LocalAliasDoesNotMatchAvrae(_AliasComparisonResultWithAlias):
+    def apply(self):
+        with open(self.alias_path, mode='w', encoding='utf-8') as alias_file:
+            alias_file.write(self.alias.docs)
+
+
+class LocalAliasDoesNotMatchAvrae(_AliasComparisonResultWithAlias, UpdatesAvrae):
     """
     The local .alias file contains code which does not match the active version on avrae.
     """
 
-class LocalAliasDocsDoNotMatchAvrae(_AliasComparisonResultWithAlias):
+    def summary(self) -> str:
+        return f"{self.alias_path} does not match the active version of " \
+            f"{self.alias.name}({self.alias.id})"
+
+    def apply(self, client: AvraeClient):
+        matching_version = client.recent_matching_version(item=self.alias)
+        if not matching_version:
+            with open(self.alias_path, mode='r', encoding='utf-8') as alias_file:
+                new_version = client.create_new_code_version(
+                    item=self.alias,
+                    code=alias_file.read()
+                )
+                client.set_active_code_version(item=self.alias, version=new_version)
+
+class LocalAliasDocsDoNotMatchAvrae(_AliasComparisonResultWithAlias, UpdatesAvrae):
     """
     The local doc markdown file does not match the current docs in the avrae collection.
     """
+
+    def summary(self) -> str:
+        return f"{self.alias_path} does not match the current docs for " \
+            f"{self.alias.name}({self.alias.id})"
+
+    def apply(self, client: AvraeClient):
+        with open(self.alias_path, mode='r', encoding='utf-8') as docs_file:
+            client.update_docs(item=self.alias, yaml=docs_file.read())
 
 
 # Snippets
@@ -108,6 +173,9 @@ class LocalSnippetNotFoundInAvrae(_SnippetComparisonResult):
     but wad not found in the matching avrae collection.
     """
 
+    def summary(self) -> str:
+        return f"Snippet {self.snippet_path} does not exist in Avrae."
+
 
 class _SnippetComparisonResultWithSnippet(_SnippetComparisonResult):
     def __init__(self, snippet_path: os.PathLike, snippet: Snippet) -> None:
@@ -120,33 +188,78 @@ class LocalSnippetMatchesAvrae(_SnippetComparisonResultWithSnippet):
     The local .snippet file matches the current active version code in the avrae collection.
     """
 
+    def summary(self) -> str:
+        return f"Snippet {self.snippet_path} matches Avrae."
+
+
 class LocalSnippetDocsMatchAvrae(_SnippetComparisonResultWithSnippet):
     """
     The local doc markdown file matches the current docs for the snippet in the avrae collection.
     """
 
+    def summary(self) -> str:
+        return f"Snippet docs file {self.snippet_path} matches Avrae."
 
-class LocalSnippetMissing(_SnippetComparisonResultWithSnippet):
+
+class LocalSnippetMissing(_SnippetComparisonResultWithSnippet, UpdatesRepository):
     """
     A snippet was found in the avrae collection which has no corresponding .snippet file
     in the repository at its expected location.
     """
 
-class LocalSnippetDocsMissing(_SnippetComparisonResultWithSnippet):
+    def summary(self) -> str:
+        return f"Snippet {self.snippet.name}({self.snippet.id}) has no matching .snippet file " \
+            f"at {self.snippet_path}."
+
+    def apply(self):
+        with open(self.snippet_path, mode='w', encoding='utf-8') as snippet_file:
+            snippet_file.write(self.snippet.code)
+
+class LocalSnippetDocsMissing(_SnippetComparisonResultWithSnippet, UpdatesRepository):
     """
     No corresponding markdown file was found for the alias.
     """
 
+    def summary(self) -> str:
+        return f"Snippet {self.snippet.name}({self.snippet.id}) has no matching .md file " \
+            f"at {self.snippet_path}."
 
-class LocalSnippetDoesNotMatchAvrae(_SnippetComparisonResultWithSnippet):
+    def apply(self):
+        with open(self.snippet_path, mode='w', encoding='utf-8') as snippet_file:
+            snippet_file.write(self.snippet.docs)
+
+
+class LocalSnippetDoesNotMatchAvrae(_SnippetComparisonResultWithSnippet, UpdatesAvrae):
     """
     The local .snippet file contains code which does not match the active version on avrae.
     """
 
-class LocalSnippetDocsDoNotMatchAvrae(_SnippetComparisonResultWithSnippet):
+    def summary(self) -> str:
+        return f"{self.snippet_path} does not match the active version of " \
+            f"{self.snippet.name}({self.snippet.id})"
+
+    def apply(self, client: AvraeClient):
+        matching_version = client.recent_matching_version(item=self.snippet)
+        if not matching_version:
+            with open(self.snippet_path, mode='r', encoding='utf-8') as snippet_file:
+                new_version = client.create_new_code_version(
+                    item=self.snippet,
+                    code=snippet_file.read()
+                )
+                client.set_active_code_version(item=self.snippet, version=new_version)
+
+class LocalSnippetDocsDoNotMatchAvrae(_SnippetComparisonResultWithSnippet, UpdatesAvrae):
     """
     The local doc markdown file does not match the current docs in the avrae collection.
     """
+
+    def summary(self) -> str:
+        return f"{self.snippet_path} does not match the current docs for " \
+            f"{self.snippet.name}({self.snippet.id})"
+
+    def apply(self, client: AvraeClient):
+        with open(self.snippet_path, mode='r', encoding='utf-8') as docs_file:
+            client.update_docs(item=self.snippet, yaml=docs_file.read())
 
 # GVars
 
@@ -163,6 +276,9 @@ class LocalGvarNotFoundInAvrae(_GvarComparisonResult):
     but wad not found in the matching avrae collection.
     """
 
+    def summary(self) -> str:
+        return f"Gvar {self.gvar_path} is not mapped to an existing gvar in Avrae."
+
 
 class _GvarComparisonResultWithGvar(_GvarComparisonResult):
     def __init__(self, gvar_path: os.PathLike, gvar: Gvar) -> None:
@@ -175,19 +291,35 @@ class LocalGvarMatchesAvrae(_GvarComparisonResultWithGvar):
     The local .gvar file contents match the gvar in the avrae collection.
     """
 
+    def summary(self) -> str:
+        return f"Gvar {self.gvar_path} matches {self.gvar.key} in Avrae."
 
-class LocalGvarMissing(_GvarComparisonResultWithGvar):
+
+class LocalGvarMissing(_GvarComparisonResultWithGvar, UpdatesRepository):
     """
     A .gvar file is present in the configuration and avrae
     but was not found on disk at the expected location.
     """
 
+    def summary(self) -> str:
+        return f"Gvar {self.gvar.key} has no matching .gvar file at " \
+            f"{self.gvar_path}"
 
-class LocalGvarDoesNotMatchAvrae(_GvarComparisonResultWithGvar):
+    def apply(self):
+        with open(self.gvar_path, mode='w', encoding='utf-8') as gvar_file:
+            gvar_file.write(self.gvar.value)
+
+class LocalGvarDoesNotMatchAvrae(_GvarComparisonResultWithGvar, UpdatesAvrae):
     """
     The local .gvar file contents do not match the gvar in the avrae collection.
     """
 
+    def summary(self) -> str:
+        return f"{self.gvar_path} does not match {self.gvar.key} in Avrae"
+
+    def apply(self, client: AvraeClient):
+        with open(self.gvar_path, mode='r', encoding='utf-8') as gvar_file:
+            client.update_gvar(gvar=self.gvar, value=gvar_file.read())
 
 def _compare_aliases(
     collection: Collection,
@@ -419,22 +551,3 @@ def compare_repository_with_avrae(
         'collections': collection_results,
         'gvars': _compare_gvars(gvars=gvars, config=gvar_config, base_path=base_path)
     }
-
-    # for each alias/snippet
-    # does a local copy exist?
-    # is it modified?
-    # if not modified is the code unchanged?
-    # does it have docs?
-    # are the docs modified or do they match the dashboard copy?
-    # for each collection in collections.json
-    # are there any misplaced snippets not at the top level?
-    # do all snippets appear in the dashboard?
-    # are their any aliases not in matching folders?
-    # are their folders containing aliases which are not in the dashboard?
-    # do they have doc files?
-    # for each gvar in gvars.json
-    # is there a local copy?
-    # is it modified or does it match the dashboard?
-    # for each .gvar file
-    # is it misplaced?
-    # is it in gvars.json?
