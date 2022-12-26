@@ -1,5 +1,6 @@
 import json
 import os
+from pathlib import Path
 import sys
 
 from .avrae import AvraeClient
@@ -21,7 +22,7 @@ def pull() -> int:
                 result.apply()
 
     # The repository checkout path
-    repo_base_path = os.getenv('GITHUB_WORKSPACE')
+    repo_base_path = Path(os.getenv('GITHUB_WORKSPACE'))
 
     # Check for expected config files
     gvar_config_path = os.getenv('GVARS_CONFIG')
