@@ -17,7 +17,7 @@ inputs:
     required: true
 runs:
   using: 'docker'
-  image: '../Dockerfile'
+  image: '../../Dockerfile'
   env:
     AVRAE_TOKEN: ${{ inputs.avrae_token }}
     COLLECTIONS_CONFIG: $${{ inputs.collections }}
