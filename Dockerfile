@@ -1,6 +1,6 @@
 FROM python:3.9-slim AS builder
 ADD ./autoupdate /app/autoupdate
-ADD ./*.py /app
+ADD ./pull.py /app/pull.py
 COPY requirements.txt app/requirements.txt
 WORKDIR /app
 
