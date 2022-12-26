@@ -23,4 +23,4 @@ runs:
     COLLECTIONS_CONFIG: $${{ inputs.collections }}
     GVARS_CONFIG: ${{ inputs.gvars }}
   args:
-    - app/pull.py
+    - python pull.py
