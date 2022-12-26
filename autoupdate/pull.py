@@ -64,6 +64,3 @@ def pull() -> int:
     apply_repository_changes(results['gvars'])
 
     return 0
-
-if __name__ == '__main__':
-    sys.exit(pull())

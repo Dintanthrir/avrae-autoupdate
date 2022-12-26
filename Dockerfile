@@ -1,10 +1,10 @@
 FROM python:3.9-slim AS builder
-ADD ./autoupdate /app
-COPY requirements.txt requirements.txt
+ADD ./autoupdate /app/autoupdate
+COPY requirements.txt app/requirements.txt
 WORKDIR /app
 
 # Install dependencies
-RUN pip install -r ../requirements.txt
+RUN pip install -r requirements.txt
 
 # A distroless container image with Python and some basics like SSL certificates
 # https://github.com/GoogleContainerTools/distroless
