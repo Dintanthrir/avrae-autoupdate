@@ -1,5 +1,6 @@
 FROM python:3.9-slim AS builder
 ADD ./autoupdate /app/autoupdate
+ADD ./*.py /app
 COPY requirements.txt app/requirements.txt
 WORKDIR /app
 
