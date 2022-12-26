@@ -1,0 +1,24 @@
+name: 'Pull from Avrae'
+description: 'Pull changes from the Avrae dashboard'
+author: 'Dintanthrir'
+inputs: 
+  collections:
+    description: Relative path to a JSON file containing a JSON object mapping relative directory paths in the repo to Avrae collection ids.
+    default: collections.json
+    required: false
+    type: string
+  gvars:
+    description: Relative path to a JSON file containing a JSON object mapping Avrae gvar ids to descriptive names.
+    default: gvars.json
+    required: false
+    type: string
+  avrae_token:
+    description: An authentication token from https://avrae.io/dashboard
+    required: true
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  env:
+    AVRAE_TOKEN: ${{ inputs.avrae_token }}
+    COLLECTIONS_CONFIG: $${{ inputs.collections }}
+    GVARS_CONFIG: ${{ inputs.gvars }}
