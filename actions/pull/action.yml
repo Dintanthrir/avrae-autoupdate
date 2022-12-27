@@ -20,5 +20,5 @@ runs:
   image: '../../Dockerfile'
   env:
     AVRAE_TOKEN: ${{ inputs.avrae_token }}
-    COLLECTIONS_CONFIG: $${{ inputs.collections }}
+    COLLECTIONS_CONFIG: ${{ inputs.collections }}
     GVARS_CONFIG: ${{ inputs.gvars }}
