@@ -17,9 +17,14 @@ def pull() -> int:
         From the set of all ComparisonResults apply only those which update the repository.
         """
         for result in comparison_results:
+            sys.stdout.writelines([
+                'evaluating:',
+                result.summary
+            ])
             if isinstance(result, UpdatesRepository):
                 sys.stdout.write(result.summary())
                 result.apply()
+            sys.stdout.flush()
 
     # The repository checkout path
     repo_base_path = Path(os.getenv('GITHUB_WORKSPACE'))
