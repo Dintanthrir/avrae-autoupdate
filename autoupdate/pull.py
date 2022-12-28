@@ -6,7 +6,12 @@ import sys
 from .avrae import AvraeClient
 from .sources import ComparisonResult, UpdatesRepository, compare_repository_with_avrae
 
-def pull() -> int:
+def pull(
+    repo_base_path: Path,
+    gvar_config_relative_path: Path,
+    collections_config_relative_path: Path,
+    api_key: str,
+) -> int:
     """
     Overwrite local sources with the current content from avrae and create a pull request to apply
     the changes.
@@ -17,35 +22,28 @@ def pull() -> int:
         From the set of all ComparisonResults apply only those which update the repository.
         """
         for result in comparison_results:
-            sys.stdout.writelines([
-                'evaluating:',
-                result.summary
-            ])
             if isinstance(result, UpdatesRepository):
                 sys.stdout.write(result.summary())
+                sys.stdout.write("/n")
                 result.apply()
-            sys.stdout.flush()
-
-    # The repository checkout path
-    repo_base_path = Path(os.getenv('GITHUB_WORKSPACE'))
 
     # Check for expected config files
-    gvar_config_path = os.getenv('GVARS_CONFIG')
-    if not os.path.exists(repo_base_path / gvar_config_path):
+    gvar_config_path = (repo_base_path / gvar_config_relative_path)
+    if not os.path.exists(gvar_config_path):
         sys.stderr.write(
             f"::error title=Missing gvars config file.::Gvar config not found at " \
-            f"{gvar_config_path} create the file or specify a path using the 'gvars' " \
+            f"{gvar_config_relative_path} create the file or specify a path using the 'gvars' " \
             "workflow input.\n"
         )
         return 1
     with open(gvar_config_path, mode='r', encoding='utf-8') as gvar_config_file:
         gvar_config = json.load(gvar_config_file)
 
-    collections_config_path = os.getenv('COLLECTIONS_CONFIG')
-    if not os.path.exists(repo_base_path / collections_config_path):
+    collections_config_path = (repo_base_path / collections_config_relative_path)
+    if not os.path.exists(collections_config_path):
         sys.stderr.write(
             f"::error title=Missing collections config file.::Collections config not found at " \
-            f"{collections_config_path} create the file or specify a path using the " \
+            f"{collections_config_relative_path} create the file or specify a path using the " \
             "'collections' workflow input.\n"
         )
         return 1
@@ -53,7 +51,7 @@ def pull() -> int:
         collections_config = json.load(collections_config_file)
 
     client = AvraeClient(
-        api_key=os.getenv('AVRAE_TOKEN'),
+        api_key=api_key,
         collection_ids=collections_config.keys()
     )
     collections = client.get_collections()

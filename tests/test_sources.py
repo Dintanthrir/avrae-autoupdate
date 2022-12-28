@@ -25,7 +25,6 @@ from autoupdate.sources import (LocalAliasDoesNotMatchAvrae,
                                 LocalSnippetNotFoundInAvrae,
                                 _compare_aliases, _compare_gvars, _compare_snippets)
 
-
 def test_compare_aliases(collection_fixtures: dict[str, Collection], tmp_path):
     collection_id = '5fa19a9814a62cb7e811c5c4'
     collection = collection_fixtures[collection_id]
@@ -59,37 +58,44 @@ def test_compare_aliases(collection_fixtures: dict[str, Collection], tmp_path):
     expected = [
         LocalAliasMatchesAvrae(
             (tmp_path / 'API Collection Test' /
-             'test-alias' / 'test-alias.alias').as_posix(),
+             'test-alias' / 'test-alias.alias'),
+            tmp_path,
             collection.aliases[0]
         ),
         LocalAliasDocsMatchAvrae(
             (tmp_path / 'API Collection Test' /
-             'test-alias' / 'test-alias.md').as_posix(),
+             'test-alias' / 'test-alias.md'),
+            tmp_path,
             collection.aliases[0]
         ),
         LocalAliasDoesNotMatchAvrae(
             (tmp_path / 'API Collection Test' / 'test-alias' /
-             'test-subalias' / 'test-subalias.alias').as_posix(),
+             'test-subalias' / 'test-subalias.alias'),
+            tmp_path,
             collection.aliases[0].subcommands[0]
         ),
         LocalAliasDocsDoNotMatchAvrae(
             (tmp_path / 'API Collection Test' / 'test-alias' /
-             'test-subalias' / 'test-subalias.md').as_posix(),
+             'test-subalias' / 'test-subalias.md'),
+            tmp_path,
             collection.aliases[0].subcommands[0]
         ),
         LocalAliasMissing(
             (tmp_path / 'API Collection Test' / 'test-alias' / 'test-subalias' /
-             'test-subalias' / 'test-subalias.alias').as_posix(),
+             'test-subalias' / 'test-subalias.alias'),
+            tmp_path,
             collection.aliases[0].subcommands[0].subcommands[0]
         ),
         LocalAliasDocsMissing(
             (tmp_path / 'API Collection Test' / 'test-alias' / 'test-subalias' /
-             'test-subalias' / 'test-subalias.md').as_posix(),
+             'test-subalias' / 'test-subalias.md'),
+            tmp_path,
             collection.aliases[0].subcommands[0].subcommands[0]
         ),
         LocalAliasNotFoundInAvrae(
             (tmp_path / 'API Collection Test' /
-             'new-alias' / 'new-alias.alias').as_posix()
+             'new-alias' / 'new-alias.alias'),
+            tmp_path,
         ),
     ]
     for result in expected:
@@ -110,11 +116,13 @@ def test_compare_snippets(collection_fixtures: dict[str, Collection], tmp_path):
     # When local files match avrae
     assert _compare_snippets(collection=collection, base_path=tmp_path) == [
         LocalSnippetMatchesAvrae(
-            (tmp_path / 'API Collection Test' / 'snippets' / 'test123.snippet').as_posix(),
+            (tmp_path / 'API Collection Test' / 'snippets' / 'test123.snippet'),
+            tmp_path,
             collection.snippets[0]
         ),
         LocalSnippetDocsMatchAvrae(
-            (tmp_path / 'API Collection Test' / 'snippets' / 'test123.md').as_posix(),
+            (tmp_path / 'API Collection Test' / 'snippets' / 'test123.md'),
+            tmp_path,
             collection.snippets[0]
         ),
     ]
@@ -124,11 +132,13 @@ def test_compare_snippets(collection_fixtures: dict[str, Collection], tmp_path):
     (tmp_path / 'API Collection Test' / 'snippets' / 'test123.md').write_text('modified')
     assert _compare_snippets(collection=collection, base_path=tmp_path) == [
         LocalSnippetDoesNotMatchAvrae(
-            (tmp_path / 'API Collection Test' / 'snippets' / 'test123.snippet').as_posix(),
+            (tmp_path / 'API Collection Test' / 'snippets' / 'test123.snippet'),
+            tmp_path,
             collection.snippets[0]
         ),
         LocalSnippetDocsDoNotMatchAvrae(
-            (tmp_path / 'API Collection Test' / 'snippets' / 'test123.md').as_posix(),
+            (tmp_path / 'API Collection Test' / 'snippets' / 'test123.md'),
+            tmp_path,
             collection.snippets[0]
         ),
     ]
@@ -139,15 +149,18 @@ def test_compare_snippets(collection_fixtures: dict[str, Collection], tmp_path):
     (tmp_path / 'API Collection Test' / 'snippets' / 'test123.md').unlink()
     assert _compare_snippets(collection=collection, base_path=tmp_path) == [
         LocalSnippetMissing(
-            (tmp_path / 'API Collection Test' / 'snippets' / 'test123.snippet').as_posix(),
+            (tmp_path / 'API Collection Test' / 'snippets' / 'test123.snippet'),
+            tmp_path,
             collection.snippets[0]
         ),
         LocalSnippetDocsMissing(
-            (tmp_path / 'API Collection Test' / 'snippets' / 'test123.md').as_posix(),
+            (tmp_path / 'API Collection Test' / 'snippets' / 'test123.md'),
+            tmp_path,
             collection.snippets[0]
         ),
         LocalSnippetNotFoundInAvrae(
-            (tmp_path / 'API Collection Test' / 'snippets' / 'new.snippet').as_posix()
+            (tmp_path / 'API Collection Test' / 'snippets' / 'new.snippet'),
+            tmp_path,
         ),
     ]
 
@@ -177,13 +190,24 @@ def test_compare_gvars(tmp_path):
     comparison = _compare_gvars(gvars=gvars, config=config, base_path=tmp_path)
     assert comparison == [
         LocalGvarMatchesAvrae(
-            (tmp_path / 'up-to-date.gvar').as_posix(), gvars[0]),
+            (tmp_path / 'up-to-date.gvar'),
+            tmp_path,
+            gvars[0]
+        ),
         LocalGvarDoesNotMatchAvrae(
-            (tmp_path / 'gvars' / 'modified-var.gvar').as_posix(), gvars[1]),
+            (tmp_path / 'gvars' / 'modified-var.gvar'),
+            tmp_path,
+            gvars[1]
+        ),
         LocalGvarNotFoundInAvrae(
-            (tmp_path / 'gvars' / 'new-var.gvar').as_posix()),
+            (tmp_path / 'gvars' / 'new-var.gvar'),
+            tmp_path,
+        ),
         LocalGvarMissing(
-            (tmp_path / 'gvars' / 'not-found.gvar').as_posix(), gvars[2]),
+            (tmp_path / 'gvars' / 'not-found.gvar'),
+            tmp_path,
+            gvars[2]
+        ),
     ]
 
 # ComparisonResults
@@ -192,7 +216,10 @@ def test_compare_gvars(tmp_path):
 
 def test_local_alias_not_found_in_avrae(tmp_path):
     alias_path = tmp_path / 'test.alias'
-    result = LocalAliasNotFoundInAvrae(alias_path)
+    result = LocalAliasNotFoundInAvrae(
+        alias_path,
+        tmp_path,
+    )
     assert 'test.alias does not exist in Avrae.' in result.summary()
 
 def test_local_alias_matches_avrae(tmp_path):
@@ -209,7 +236,11 @@ def test_local_alias_matches_avrae(tmp_path):
         parent_id=None,
     )
     alias_path = tmp_path / 'test-alias.alias'
-    result = LocalAliasMatchesAvrae(alias_path, alias)
+    result = LocalAliasMatchesAvrae(
+        alias_path,
+        tmp_path,
+        alias
+    )
     assert 'test-alias.alias matches Avrae.' in result.summary()
 
 def test_local_alias_docs_match_avrae(tmp_path):
@@ -226,7 +257,11 @@ def test_local_alias_docs_match_avrae(tmp_path):
         parent_id=None,
     )
     docs_path = tmp_path / 'test-alias.md'
-    result = LocalAliasDocsMatchAvrae(docs_path, alias)
+    result = LocalAliasDocsMatchAvrae(
+        docs_path,
+        tmp_path,
+        alias
+    )
     assert 'test-alias.md matches Avrae.' in result.summary()
 
 def test_local_alias_missing(tmp_path):
@@ -243,7 +278,11 @@ def test_local_alias_missing(tmp_path):
         parent_id=None,
     )
     alias_path = tmp_path / 'test-alias.alias'
-    result = LocalAliasMissing(alias_path, alias)
+    result = LocalAliasMissing(
+        alias_path,
+        tmp_path,
+        alias
+    )
     assert 'test-alias(a11a5) has no matching .alias file' in result.summary()
 
     assert not os.path.exists(alias_path)
@@ -266,7 +305,11 @@ def test_local_alias_docs_missing(tmp_path):
         parent_id=None,
     )
     docs_path = tmp_path / 'test-alias.md'
-    result = LocalAliasDocsMissing(docs_path, alias)
+    result = LocalAliasDocsMissing(
+        docs_path,
+        tmp_path,
+        alias
+    )
     assert 'test-alias(a11a5) has no matching .md file' in result.summary()
 
     assert not os.path.exists(docs_path)
@@ -291,7 +334,11 @@ def test_local_alias_does_not_match_avrae(tmp_path):
     alias_path = tmp_path / 'test-alias.alias'
     alias_path.write_text('new code')
 
-    result = LocalAliasDoesNotMatchAvrae(alias_path, alias)
+    result = LocalAliasDoesNotMatchAvrae(
+        alias_path,
+        tmp_path,
+        alias
+    )
     assert 'test-alias.alias does not match the active version of test-alias(a11a5)' \
         in result.summary()
 
@@ -329,7 +376,11 @@ def test_local_alias_docs_do_not_match_avrae(tmp_path):
     docs_path = tmp_path / 'test-alias.md'
     docs_path.write_text('new docs')
 
-    result = LocalAliasDocsDoNotMatchAvrae(docs_path, alias)
+    result = LocalAliasDocsDoNotMatchAvrae(
+        docs_path,
+        tmp_path,
+        alias
+    )
     assert 'test-alias.md does not match the current docs for test-alias(a11a5)' in result.summary()
 
     client = Mock(AvraeClient)
@@ -340,7 +391,10 @@ def test_local_alias_docs_do_not_match_avrae(tmp_path):
 
 def test_local_snippet_not_found_in_avrae(tmp_path):
     snippet_path = tmp_path / 'test.snippet'
-    result = LocalSnippetNotFoundInAvrae(snippet_path)
+    result = LocalSnippetNotFoundInAvrae(
+        snippet_path,
+        tmp_path,
+    )
     assert 'test.snippet does not exist in Avrae.' in result.summary()
 
 def test_local_snippet_matches_avrae(tmp_path):
@@ -354,7 +408,11 @@ def test_local_snippet_matches_avrae(tmp_path):
         entitlements=[],
     )
     snippet_path = tmp_path / 'test.snippet'
-    result = LocalSnippetMatchesAvrae(snippet_path, snippet)
+    result = LocalSnippetMatchesAvrae(
+        snippet_path,
+        tmp_path,
+        snippet
+    )
     assert 'test.snippet matches Avrae.' in result.summary()
 
 def test_local_snippet_docs_match_avrae(tmp_path):
@@ -368,7 +426,11 @@ def test_local_snippet_docs_match_avrae(tmp_path):
         entitlements=[],
     )
     snippet_path = tmp_path / 'test.md'
-    result = LocalSnippetDocsMatchAvrae(snippet_path, snippet)
+    result = LocalSnippetDocsMatchAvrae(
+        snippet_path,
+        tmp_path,
+        snippet
+    )
     assert 'test.md matches Avrae.' in result.summary()
 
 def test_local_snippet_missing(tmp_path):
@@ -382,7 +444,11 @@ def test_local_snippet_missing(tmp_path):
         entitlements=[],
     )
     snippet_path = tmp_path / 'test.snippet'
-    result = LocalSnippetMissing(snippet_path, snippet)
+    result = LocalSnippetMissing(
+        snippet_path,
+        tmp_path,
+        snippet
+    )
     assert 'test(54177e7) has no matching .snippet file' in result.summary()
 
     assert not os.path.exists(snippet_path)
@@ -402,7 +468,11 @@ def test_local_snippet_docs_missing(tmp_path):
         entitlements=[],
     )
     docs_path = tmp_path / 'test.md'
-    result = LocalSnippetDocsMissing(docs_path, snippet)
+    result = LocalSnippetDocsMissing(
+        docs_path,
+        tmp_path,
+        snippet
+    )
     assert 'test(54177e7) has no matching .md file' in result.summary()
 
     assert not os.path.exists(docs_path)
@@ -424,7 +494,11 @@ def test_local_snippet_does_not_match_avrae(tmp_path):
     snippet_path = tmp_path / 'test.snippet'
     snippet_path.write_text('new code')
 
-    result = LocalSnippetDoesNotMatchAvrae(snippet_path, snippet)
+    result = LocalSnippetDoesNotMatchAvrae(
+        snippet_path,
+        tmp_path,
+        snippet
+    )
     assert 'test.snippet does not match the active version of test(54177e7)' \
         in result.summary()
 
@@ -459,7 +533,11 @@ def test_local_snippet_docs_do_not_match_avrae(tmp_path):
     docs_path = tmp_path / 'test.md'
     docs_path.write_text('new docs')
 
-    result = LocalSnippetDocsDoNotMatchAvrae(docs_path, snippet)
+    result = LocalSnippetDocsDoNotMatchAvrae(
+        docs_path,
+        tmp_path,
+        snippet
+    )
     assert 'test.md does not match the current docs for test(54177e7)' in result.summary()
 
     client = Mock(AvraeClient)
@@ -470,7 +548,10 @@ def test_local_snippet_docs_do_not_match_avrae(tmp_path):
 
 def test_local_gvar_not_found_in_avrae(tmp_path):
     gvar_path = tmp_path / 'test.gvar'
-    result = LocalGvarNotFoundInAvrae(gvar_path)
+    result = LocalGvarNotFoundInAvrae(
+        gvar_path,
+        tmp_path,
+    )
     assert 'test.gvar is not mapped to an existing gvar in Avrae.' in result.summary()
 
 def test_local_gvar_matches_avrae(tmp_path):
@@ -482,7 +563,11 @@ def test_local_gvar_matches_avrae(tmp_path):
         editors=[]
     )
     gvar_path = tmp_path / 'test.gvar'
-    result = LocalGvarMatchesAvrae(gvar_path, gvar)
+    result = LocalGvarMatchesAvrae(
+        gvar_path,
+        tmp_path,
+        gvar
+    )
     assert 'test.gvar matches 123abc in Avrae.' in result.summary()
 
 def test_local_gvar_missing(tmp_path):
@@ -494,7 +579,11 @@ def test_local_gvar_missing(tmp_path):
         editors=[]
     )
     gvar_path = tmp_path / 'test.gvar'
-    result = LocalGvarMissing(gvar_path, gvar)
+    result = LocalGvarMissing(
+        gvar_path,
+        tmp_path,
+        gvar
+    )
     assert 'Gvar 123abc has no matching .gvar file' in result.summary()
 
     assert not os.path.exists(gvar_path)
@@ -514,7 +603,11 @@ def test_local_gvar_does_not_match_avrae(tmp_path):
     )
     gvar_path = tmp_path / 'test.gvar'
     gvar_path.write_text('new gvar code')
-    result = LocalGvarDoesNotMatchAvrae(gvar_path, gvar)
+    result = LocalGvarDoesNotMatchAvrae(
+        gvar_path,
+        tmp_path,
+        gvar
+    )
     assert 'test.gvar does not match 123abc in Avrae' in result.summary()
 
     client = Mock(AvraeClient)

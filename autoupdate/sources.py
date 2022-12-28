@@ -7,6 +7,7 @@ with the local repository.
 from abc import ABC, abstractmethod
 from itertools import chain
 import os
+from pathlib import Path
 
 from .avrae import (
     Alias,
@@ -22,6 +23,12 @@ class ComparisonResult(ABC):
     The result of a comparison between a single resource in the current repository and the avrae API
     each result can report differences between the two locations.
     """
+
+    def __init__(self, path: os.PathLike, base_path: os.PathLike) -> None:
+        super().__init__()
+        self.path = path
+        self.base_path = base_path
+        self.relative_path = path.relative_to(base_path)
 
     @abstractmethod
     def summary(self) -> str:
@@ -57,12 +64,8 @@ class UpdatesRepository(ABC):
 
 # Aliases
 
-
 class _AliasComparisonResult(ComparisonResult):
-    def __init__(self, alias_path: os.PathLike) -> None:
-        super().__init__()
-        self.alias_path = alias_path
-
+    pass
 
 class LocalAliasNotFoundInAvrae(_AliasComparisonResult):
     """
@@ -71,12 +74,12 @@ class LocalAliasNotFoundInAvrae(_AliasComparisonResult):
     """
 
     def summary(self) -> str:
-        return f"Alias {self.alias_path} does not exist in Avrae."
+        return f"Alias {self.relative_path} does not exist in Avrae."
 
 
 class _AliasComparisonResultWithAlias(_AliasComparisonResult):
-    def __init__(self, alias_path: os.PathLike, alias: Alias) -> None:
-        super().__init__(alias_path)
+    def __init__(self, path: os.PathLike, base_path: os.PathLike, alias: Alias) -> None:
+        super().__init__(path=path, base_path=base_path)
         self.alias = alias
 
 
@@ -86,7 +89,7 @@ class LocalAliasMatchesAvrae(_AliasComparisonResultWithAlias):
     """
 
     def summary(self) -> str:
-        return f"Alias {self.alias_path} matches Avrae."
+        return f"Alias {self.relative_path} matches Avrae."
 
 class LocalAliasDocsMatchAvrae(_AliasComparisonResultWithAlias):
     """
@@ -94,7 +97,7 @@ class LocalAliasDocsMatchAvrae(_AliasComparisonResultWithAlias):
     """
 
     def summary(self) -> str:
-        return f"Alias docs file {self.alias_path} matches Avrae."
+        return f"Alias docs file {self.relative_path} matches Avrae."
 
 
 class LocalAliasMissing(_AliasComparisonResultWithAlias, UpdatesRepository):
@@ -105,10 +108,11 @@ class LocalAliasMissing(_AliasComparisonResultWithAlias, UpdatesRepository):
 
     def summary(self) -> str:
         return f"Alias {self.alias.name}({self.alias.id}) has no matching .alias file at " \
-            f"{self.alias_path}."
+            f"{self.relative_path}."
 
     def apply(self):
-        with open(self.alias_path, mode='w', encoding='utf-8') as alias_file:
+        Path(os.path.dirname(self.path)).mkdir(parents=True, exist_ok=True)
+        with open(self.path, mode='w', encoding='utf-8') as alias_file:
             alias_file.write(self.alias.code)
 
 class LocalAliasDocsMissing(_AliasComparisonResultWithAlias, UpdatesRepository):
@@ -118,10 +122,11 @@ class LocalAliasDocsMissing(_AliasComparisonResultWithAlias, UpdatesRepository):
 
     def summary(self) -> str:
         return f"Alias {self.alias.name}({self.alias.id}) has no matching .md file at " \
-            "{self.alias_path}."
+            f"{self.relative_path}."
 
     def apply(self):
-        with open(self.alias_path, mode='w', encoding='utf-8') as alias_file:
+        Path(os.path.dirname(self.path)).mkdir(parents=True, exist_ok=True)
+        with open(self.path, mode='w', encoding='utf-8') as alias_file:
             alias_file.write(self.alias.docs)
 
 
@@ -131,13 +136,13 @@ class LocalAliasDoesNotMatchAvrae(_AliasComparisonResultWithAlias, UpdatesAvrae)
     """
 
     def summary(self) -> str:
-        return f"{self.alias_path} does not match the active version of " \
+        return f"{self.relative_path} does not match the active version of " \
             f"{self.alias.name}({self.alias.id})"
 
     def apply(self, client: AvraeClient):
         matching_version = client.recent_matching_version(item=self.alias)
         if not matching_version:
-            with open(self.alias_path, mode='r', encoding='utf-8') as alias_file:
+            with open(self.path, mode='r', encoding='utf-8') as alias_file:
                 new_version = client.create_new_code_version(
                     item=self.alias,
                     code=alias_file.read()
@@ -150,22 +155,18 @@ class LocalAliasDocsDoNotMatchAvrae(_AliasComparisonResultWithAlias, UpdatesAvra
     """
 
     def summary(self) -> str:
-        return f"{self.alias_path} does not match the current docs for " \
+        return f"{self.relative_path} does not match the current docs for " \
             f"{self.alias.name}({self.alias.id})"
 
     def apply(self, client: AvraeClient):
-        with open(self.alias_path, mode='r', encoding='utf-8') as docs_file:
+        with open(self.path, mode='r', encoding='utf-8') as docs_file:
             client.update_docs(item=self.alias, yaml=docs_file.read())
 
 
 # Snippets
 
-
 class _SnippetComparisonResult(ComparisonResult):
-    def __init__(self, snippet_path: os.PathLike) -> None:
-        super().__init__()
-        self.snippet_path = snippet_path
-
+    pass
 
 class LocalSnippetNotFoundInAvrae(_SnippetComparisonResult):
     """
@@ -174,12 +175,17 @@ class LocalSnippetNotFoundInAvrae(_SnippetComparisonResult):
     """
 
     def summary(self) -> str:
-        return f"Snippet {self.snippet_path} does not exist in Avrae."
+        return f"Snippet {self.relative_path} does not exist in Avrae."
 
 
 class _SnippetComparisonResultWithSnippet(_SnippetComparisonResult):
-    def __init__(self, snippet_path: os.PathLike, snippet: Snippet) -> None:
-        super().__init__(snippet_path)
+    def __init__(
+        self,
+        path: os.PathLike,
+        base_path: os.PathLike,
+        snippet: Snippet
+    ) -> None:
+        super().__init__(path=path, base_path=base_path)
         self.snippet = snippet
 
 
@@ -189,7 +195,7 @@ class LocalSnippetMatchesAvrae(_SnippetComparisonResultWithSnippet):
     """
 
     def summary(self) -> str:
-        return f"Snippet {self.snippet_path} matches Avrae."
+        return f"Snippet {self.relative_path} matches Avrae."
 
 
 class LocalSnippetDocsMatchAvrae(_SnippetComparisonResultWithSnippet):
@@ -198,7 +204,7 @@ class LocalSnippetDocsMatchAvrae(_SnippetComparisonResultWithSnippet):
     """
 
     def summary(self) -> str:
-        return f"Snippet docs file {self.snippet_path} matches Avrae."
+        return f"Snippet docs file {self.relative_path} matches Avrae."
 
 
 class LocalSnippetMissing(_SnippetComparisonResultWithSnippet, UpdatesRepository):
@@ -209,10 +215,11 @@ class LocalSnippetMissing(_SnippetComparisonResultWithSnippet, UpdatesRepository
 
     def summary(self) -> str:
         return f"Snippet {self.snippet.name}({self.snippet.id}) has no matching .snippet file " \
-            f"at {self.snippet_path}."
+            f"at {self.relative_path}."
 
     def apply(self):
-        with open(self.snippet_path, mode='w', encoding='utf-8') as snippet_file:
+        Path(os.path.dirname(self.path)).mkdir(parents=True, exist_ok=True)
+        with open(self.path, mode='w', encoding='utf-8') as snippet_file:
             snippet_file.write(self.snippet.code)
 
 class LocalSnippetDocsMissing(_SnippetComparisonResultWithSnippet, UpdatesRepository):
@@ -222,10 +229,11 @@ class LocalSnippetDocsMissing(_SnippetComparisonResultWithSnippet, UpdatesReposi
 
     def summary(self) -> str:
         return f"Snippet {self.snippet.name}({self.snippet.id}) has no matching .md file " \
-            f"at {self.snippet_path}."
+            f"at {self.relative_path}."
 
     def apply(self):
-        with open(self.snippet_path, mode='w', encoding='utf-8') as snippet_file:
+        Path(os.path.dirname(self.path)).mkdir(parents=True, exist_ok=True)
+        with open(self.path, mode='w', encoding='utf-8') as snippet_file:
             snippet_file.write(self.snippet.docs)
 
 
@@ -235,13 +243,13 @@ class LocalSnippetDoesNotMatchAvrae(_SnippetComparisonResultWithSnippet, Updates
     """
 
     def summary(self) -> str:
-        return f"{self.snippet_path} does not match the active version of " \
+        return f"{self.relative_path} does not match the active version of " \
             f"{self.snippet.name}({self.snippet.id})"
 
     def apply(self, client: AvraeClient):
         matching_version = client.recent_matching_version(item=self.snippet)
         if not matching_version:
-            with open(self.snippet_path, mode='r', encoding='utf-8') as snippet_file:
+            with open(self.path, mode='r', encoding='utf-8') as snippet_file:
                 new_version = client.create_new_code_version(
                     item=self.snippet,
                     code=snippet_file.read()
@@ -254,21 +262,17 @@ class LocalSnippetDocsDoNotMatchAvrae(_SnippetComparisonResultWithSnippet, Updat
     """
 
     def summary(self) -> str:
-        return f"{self.snippet_path} does not match the current docs for " \
+        return f"{self.relative_path} does not match the current docs for " \
             f"{self.snippet.name}({self.snippet.id})"
 
     def apply(self, client: AvraeClient):
-        with open(self.snippet_path, mode='r', encoding='utf-8') as docs_file:
+        with open(self.path, mode='r', encoding='utf-8') as docs_file:
             client.update_docs(item=self.snippet, yaml=docs_file.read())
 
 # GVars
 
-
 class _GvarComparisonResult(ComparisonResult):
-    def __init__(self, gvar_path: os.PathLike) -> None:
-        super().__init__()
-        self.gvar_path = gvar_path
-
+    pass
 
 class LocalGvarNotFoundInAvrae(_GvarComparisonResult):
     """
@@ -277,12 +281,12 @@ class LocalGvarNotFoundInAvrae(_GvarComparisonResult):
     """
 
     def summary(self) -> str:
-        return f"Gvar {self.gvar_path} is not mapped to an existing gvar in Avrae."
+        return f"Gvar {self.relative_path} is not mapped to an existing gvar in Avrae."
 
 
 class _GvarComparisonResultWithGvar(_GvarComparisonResult):
-    def __init__(self, gvar_path: os.PathLike, gvar: Gvar) -> None:
-        super().__init__(gvar_path)
+    def __init__(self, path: os.PathLike, base_path: os.PathLike, gvar: Gvar) -> None:
+        super().__init__(path=path, base_path=base_path)
         self.gvar = gvar
 
 
@@ -292,7 +296,7 @@ class LocalGvarMatchesAvrae(_GvarComparisonResultWithGvar):
     """
 
     def summary(self) -> str:
-        return f"Gvar {self.gvar_path} matches {self.gvar.key} in Avrae."
+        return f"Gvar {self.relative_path} matches {self.gvar.key} in Avrae."
 
 
 class LocalGvarMissing(_GvarComparisonResultWithGvar, UpdatesRepository):
@@ -303,10 +307,11 @@ class LocalGvarMissing(_GvarComparisonResultWithGvar, UpdatesRepository):
 
     def summary(self) -> str:
         return f"Gvar {self.gvar.key} has no matching .gvar file at " \
-            f"{self.gvar_path}"
+            f"{self.relative_path}"
 
     def apply(self):
-        with open(self.gvar_path, mode='w', encoding='utf-8') as gvar_file:
+        Path(os.path.dirname(self.path)).mkdir(parents=True, exist_ok=True)
+        with open(self.path, mode='w', encoding='utf-8') as gvar_file:
             gvar_file.write(self.gvar.value)
 
 class LocalGvarDoesNotMatchAvrae(_GvarComparisonResultWithGvar, UpdatesAvrae):
@@ -315,10 +320,10 @@ class LocalGvarDoesNotMatchAvrae(_GvarComparisonResultWithGvar, UpdatesAvrae):
     """
 
     def summary(self) -> str:
-        return f"{self.gvar_path} does not match {self.gvar.key} in Avrae"
+        return f"{self.relative_path} does not match {self.gvar.key} in Avrae"
 
     def apply(self, client: AvraeClient):
-        with open(self.gvar_path, mode='r', encoding='utf-8') as gvar_file:
+        with open(self.path, mode='r', encoding='utf-8') as gvar_file:
             client.update_gvar(gvar=self.gvar, value=gvar_file.read())
 
 def _compare_aliases(
@@ -346,14 +351,26 @@ def _compare_aliases(
         # Check the alias code
         alias_file_path = alias_base_file_path + '.alias'
         if not os.path.exists(alias_file_path):
-            results.append(LocalAliasMissing(alias_file_path, alias))
+            results.append(LocalAliasMissing(
+                path=Path(alias_file_path),
+                base_path=base_path,
+                alias=alias
+            ))
         else:
             with open(alias_file_path, mode='r', encoding='utf-8') as alias_file:
                 local_code = alias_file.read()
                 if local_code == alias.code:
-                    results.append(LocalAliasMatchesAvrae(alias_file_path, alias))
+                    results.append(LocalAliasMatchesAvrae(
+                        path=Path(alias_file_path),
+                        base_path=base_path,
+                        alias=alias
+                    ))
                 else:
-                    results.append(LocalAliasDoesNotMatchAvrae(alias_file_path, alias))
+                    results.append(LocalAliasDoesNotMatchAvrae(
+                        path=Path(alias_file_path),
+                        base_path=base_path,
+                        alias=alias
+                    ))
 
         # Check the alias docs
         valid_doc_files = [
@@ -363,14 +380,26 @@ def _compare_aliases(
         ]
         alias_doc_path = next(filter(os.path.exists, valid_doc_files), None)
         if not alias_doc_path:
-            results.append(LocalAliasDocsMissing(valid_doc_files[0], alias))
+            results.append(LocalAliasDocsMissing(
+                path=Path(valid_doc_files[0]),
+                base_path=base_path,
+                alias=alias
+            ))
         else:
             with open(alias_doc_path, mode='r', encoding='utf-8') as doc_file:
                 local_docs = doc_file.read()
                 if local_docs == alias.docs:
-                    results.append(LocalAliasDocsMatchAvrae(alias_doc_path, alias))
+                    results.append(LocalAliasDocsMatchAvrae(
+                        path=Path(alias_doc_path),
+                        base_path=base_path,
+                        alias=alias
+                    ))
                 else:
-                    results.append(LocalAliasDocsDoNotMatchAvrae(alias_doc_path, alias))
+                    results.append(LocalAliasDocsDoNotMatchAvrae(
+                        path=Path(alias_doc_path),
+                        base_path=base_path,
+                        alias=alias
+                    ))
 
         return results
 
@@ -405,7 +434,10 @@ def _compare_aliases(
     # Report any local aliases not known to avrae
     for alias in full_local_aliases:
         if not alias in avrae_alias_files:
-            comparison_results.append(LocalAliasNotFoundInAvrae(alias))
+            comparison_results.append(LocalAliasNotFoundInAvrae(
+                path=Path(alias),
+                base_path=base_path,
+            ))
 
     return comparison_results
 
@@ -426,14 +458,26 @@ def _compare_snippets(
         # Check snippet code
         snippet_path = snippet_base_file_path + '.snippet'
         if not os.path.exists(snippet_path):
-            results.append(LocalSnippetMissing(snippet_path, snippet))
+            results.append(LocalSnippetMissing(
+                path=Path(snippet_path),
+                base_path=base_path,
+                snippet=snippet
+            ))
         else:
             with open(snippet_path, mode='r', encoding='utf-8') as snippet_file:
                 local_code = snippet_file.read()
                 if local_code == snippet.code:
-                    results.append(LocalSnippetMatchesAvrae(snippet_path, snippet))
+                    results.append(LocalSnippetMatchesAvrae(
+                        path=Path(snippet_path),
+                        base_path=base_path,
+                        snippet=snippet
+                    ))
                 else:
-                    results.append(LocalSnippetDoesNotMatchAvrae(snippet_path, snippet))
+                    results.append(LocalSnippetDoesNotMatchAvrae(
+                        path=Path(snippet_path),
+                        base_path=base_path,
+                        snippet=snippet
+                    ))
 
         # Check snippet docs
         valid_doc_files = [
@@ -443,14 +487,26 @@ def _compare_snippets(
         ]
         snippet_doc_path = next(filter(os.path.exists, valid_doc_files), None)
         if not snippet_doc_path:
-            results.append(LocalSnippetDocsMissing(valid_doc_files[0], snippet))
+            results.append(LocalSnippetDocsMissing(
+                path=Path(valid_doc_files[0]),
+                base_path=base_path,
+                snippet=snippet
+            ))
         else:
             with open(snippet_doc_path, mode='r', encoding='utf-8') as doc_file:
                 local_docs = doc_file.read()
                 if local_docs == snippet.docs:
-                    results.append(LocalSnippetDocsMatchAvrae(snippet_doc_path, snippet))
+                    results.append(LocalSnippetDocsMatchAvrae(
+                        path=Path(snippet_doc_path),
+                        base_path=base_path,
+                        snippet=snippet
+                    ))
                 else:
-                    results.append(LocalSnippetDocsDoNotMatchAvrae(snippet_doc_path, snippet))
+                    results.append(LocalSnippetDocsDoNotMatchAvrae(
+                        path=Path(snippet_doc_path),
+                        base_path=base_path,
+                        snippet=snippet
+                    ))
 
         return results
 
@@ -489,7 +545,10 @@ def _compare_snippets(
     # Report any local aliases not known to avrae
     for snippet in full_local_snippets:
         if not snippet in avrae_snippet_files:
-            comparision_results.append(LocalSnippetNotFoundInAvrae(snippet))
+            comparision_results.append(LocalSnippetNotFoundInAvrae(
+                path=Path(snippet),
+                base_path=base_path
+            ))
 
     return comparision_results
 
@@ -510,18 +569,33 @@ def _compare_gvars(
         gvar: Gvar | None = next(
             filter(lambda gvar: gvar.key == gvar_key, gvars), None)
         if not gvar:
-            return LocalGvarNotFoundInAvrae(gvar_path)
+            return LocalGvarNotFoundInAvrae(
+                path=Path(gvar_path),
+                base_path=base_path
+            )
         elif not os.path.exists(gvar_path):
-            return LocalGvarMissing(gvar_path, gvar)
+            return LocalGvarMissing(
+                path=Path(gvar_path),
+                base_path=base_path,
+                gvar=gvar
+            )
         else:
             with open(gvar_path, mode='r', encoding='utf-8') as gvar_file:
                 local_code = gvar_file.read()
                 if local_code == gvar.value:
-                    return LocalGvarMatchesAvrae(gvar_path=gvar_path, gvar=gvar)
+                    return LocalGvarMatchesAvrae(
+                        path=Path(gvar_path),
+                        base_path=base_path,
+                        gvar=gvar
+                    )
                 else:
-                    return LocalGvarDoesNotMatchAvrae(gvar_path=gvar_path, gvar=gvar)
+                    return LocalGvarDoesNotMatchAvrae(
+                        path=Path(gvar_path),
+                        base_path=base_path,
+                        gvar=gvar
+                    )
 
-    gvars_map = ((gvar_key, os.path.join(base_path, relative_path))
+    gvars_map = ((gvar_key, (base_path / relative_path))
                  for (gvar_key, relative_path) in config.items())
     return [build_gvar_comparison(gvar_key, gvar_path) for (gvar_key, gvar_path) in gvars_map]
 
