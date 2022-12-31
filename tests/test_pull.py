@@ -2,6 +2,7 @@
 Tests for pull.py
 """
 
+from datetime import datetime
 import json
 import os
 from pathlib import Path
@@ -35,8 +36,8 @@ def test_pull(tmp_path: Path, capsys: CaptureFixture[Any]):
                 publish_state='private',
                 num_subscribers=0,
                 num_guild_subscribers=0,
-                last_edited='2022-01-01T01:00:00.000000Z',
-                created_at='2022-01-01T01:00:00.000000Z',
+                last_edited=datetime.fromisoformat('2022-01-01T01:00:00.000000Z'),
+                created_at=datetime.fromisoformat('2022-01-01T01:00:00.000000Z'),
                 tags=[],
                 id='collection1',
                 aliases=[

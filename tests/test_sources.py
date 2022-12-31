@@ -2,6 +2,7 @@
 Tests for sources.py
 """
 
+from datetime import datetime
 import os
 from unittest.mock import Mock
 from autoupdate.avrae import Alias, AvraeClient, CodeVersion, Collection, Gvar, Snippet
@@ -356,7 +357,7 @@ def test_local_alias_does_not_match_avrae(tmp_path):
         content='new code',
         version=1,
         is_current=True,
-        created_at='2022-12-14T20:27:00.000000Z')
+        created_at=datetime.utcnow())
     result.apply(client)
     client.create_new_code_version.assert_not_called()
 
@@ -516,7 +517,7 @@ def test_local_snippet_does_not_match_avrae(tmp_path):
         content='new code',
         version=1,
         is_current=True,
-        created_at='2022-12-14T20:27:00.000000Z')
+        created_at=datetime.utcnow())
     result.apply(client)
     client.create_new_code_version.assert_not_called()
 

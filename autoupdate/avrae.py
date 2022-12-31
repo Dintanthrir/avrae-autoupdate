@@ -2,6 +2,7 @@
 Tools for interacting with Avrae's API
 """
 
+from datetime import datetime
 from itertools import chain
 import json
 import typing
@@ -49,8 +50,8 @@ class Collection(typing.NamedTuple):
     publish_state: str
     num_subscribers: int
     num_guild_subscribers: int
-    last_edited: str
-    created_at: str
+    last_edited: datetime
+    created_at: datetime
     tags: list[str]
     id: str
     aliases: list[Alias]
@@ -72,18 +73,8 @@ class CodeVersion(typing.NamedTuple):
     """
     version: int
     content: str
-    created_at: str
+    created_at: datetime
     is_current: bool
-
-class ConstructedPath(typing.NamedTuple):
-    """
-    Associate repo files with Avrae collections
-    """
-    obj_name: str
-    rel_path: str
-    id: str
-    type: str
-    content: str
 
 class RequestError(BaseException):
     """
@@ -137,8 +128,8 @@ def _collection_from_data(json_data) -> Collection:
         publish_state=json_data['publish_state'],
         num_subscribers=json_data['num_subscribers'],
         num_guild_subscribers=json_data['num_guild_subscribers'],
-        last_edited=json_data['last_edited'],
-        created_at=json_data['created_at'],
+        last_edited=datetime.fromisoformat(json_data['last_edited']),
+        created_at=datetime.fromisoformat(json_data['created_at']),
         tags=json_data['tags'],
         id=json_data['_id'],
         aliases=[_alias_from_data(alias_data) for alias_data in json_data['aliases']],
@@ -168,7 +159,7 @@ def _version_from_data(json_data) -> CodeVersion:
     return CodeVersion(
         version=json_data['version'],
         content=json_data['content'],
-        created_at=json_data['created_at'],
+        created_at=datetime.fromisoformat(json_data['created_at']),
         is_current=json_data['is_current']
     )
 
