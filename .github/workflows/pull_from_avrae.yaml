@@ -38,6 +38,8 @@ jobs:
           title: Updates from Avrae
           body: Update local files to match changes found on the Avrae dashboard.
           add-paths: |
+            */
+            *.js
             *.alias
             *.snippet
             *.gvar
