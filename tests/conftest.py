@@ -1,4 +1,3 @@
-from datetime import datetime
 import pytest
 
 from autoupdate.avrae import (
@@ -19,8 +18,8 @@ COLLECTIONS = {
         publish_state='UNLISTED',
         num_subscribers=1,
         num_guild_subscribers=1,
-        last_edited=datetime.fromisoformat('2022-09-20T17:35:03Z'),
-        created_at=datetime.fromisoformat('2020-11-03T17:59:52.868000Z'),
+        last_edited='2022-09-20T17:35:03Z',
+        created_at='2020-11-03T17:59:52.868000Z',
         tags=[],
         id='5fa19a9814a62cb7e811c5c4',
         aliases=[
