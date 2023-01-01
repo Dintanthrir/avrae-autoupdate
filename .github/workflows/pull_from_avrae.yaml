@@ -28,6 +28,8 @@ jobs:
           collections: ${{ inputs.collections }}
           gvars: ${{ inputs.gvars }}
           avrae_token: ${{ secrets.avrae_token }}
+      - name: Update permissions on newly created files
+        run: chown -R $USER:$USER .
       - name: Create a pull request with any changes
         id: cpr
         uses: peter-evans/create-pull-request@v4
