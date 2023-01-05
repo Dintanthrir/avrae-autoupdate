@@ -19,8 +19,7 @@ def pull(
     summary_file_path: Path | None = None,
 ) -> int:
     """
-    Overwrite local sources with the current content from avrae and create a pull request to apply
-    the changes.
+    Update local sources with missing content from avrae.
     """
 
     def apply_repository_changes(comparison_results: list[ComparisonResult]):
