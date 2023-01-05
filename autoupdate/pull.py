@@ -2,6 +2,7 @@
 Pull changes from Avrae, creating any missing source files and documentation.
 """
 
+from itertools import chain
 import json
 import os
 from pathlib import Path
@@ -51,11 +52,16 @@ def pull(
                 ])
                 if summary_file_path:
                     with open(summary_file_path, 'a', encoding='utf-8') as summary_file:
-                        summary_file.writelines([
-                            "  ```\n"
-                            f"{diff}\n"
-                            "  ```\n"
-                        ])
+                        indent = '  '
+                        summary_file.writelines(chain(
+                            [
+                                indent + "```\n",
+                            ],
+                            [(indent + line) for line in diff.splitlines(keepends=True)],
+                            [
+                                indent + "```\n",
+                            ]
+                        ))
             else:
                 sys.stdout.write(f"::notice file={result.relative_path}::{summary}\n")
 
