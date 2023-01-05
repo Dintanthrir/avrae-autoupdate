@@ -7,7 +7,7 @@ import json
 import typing
 import requests
 
-AVRAE_API_TIMEOUT = 3.0
+AVRAE_API_TIMEOUT = 10.0
 
 class Alias(typing.NamedTuple):
     """
