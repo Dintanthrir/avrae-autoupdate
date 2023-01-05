@@ -1,3 +1,7 @@
+"""
+Tests for avrae.py
+"""
+
 import os
 
 from autoupdate.avrae import (
@@ -8,8 +12,14 @@ from autoupdate.avrae import (
     Snippet,
 )
 
-TEST_COLLECTION_RESPONSE_PATH = response_file = os.path.join(os.path.dirname(__file__), 'test_collection_response.json')
-EMPTY_COLLECTION_RESPONSE_PATH = response_file = os.path.join(os.path.dirname(__file__), 'empty_collection_response.json')
+TEST_COLLECTION_RESPONSE_PATH = response_file = os.path.join(
+    os.path.dirname(__file__),
+    'test_collection_response.json'
+)
+EMPTY_COLLECTION_RESPONSE_PATH = response_file = os.path.join(
+    os.path.dirname(__file__),
+    'empty_collection_response.json'
+)
 GVAR_RESPONSE_PATH = os.path.join(os.path.dirname(__file__), 'gvars_response.json')
 API_KEY = 'some-api-key-value'
 
