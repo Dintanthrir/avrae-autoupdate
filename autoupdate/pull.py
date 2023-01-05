@@ -34,13 +34,14 @@ def pull(
                 with open(summary_file_path, 'a', encoding='utf-8') as summary_file:
                     summary_file.writelines([
                         f"- {result.relative_path}\n",
+                        f"  {summary}\n",
                     ])
             sys.stdout.write(f"::debug::{result.__class__.__name__}: {summary}\n")
             if isinstance(result, UpdatesRepository):
                 if summary_file_path:
                     with open(summary_file_path, 'a', encoding='utf-8') as summary_file:
                         summary_file.writelines([
-                            f"  {summary}\n",
+                            "  ⮡ Updating repository file.\n",
                         ])
                 result.apply()
             if isinstance(result, DiffableResult):
@@ -62,8 +63,6 @@ def pull(
                                 indent + "```\n",
                             ]
                         ))
-            else:
-                sys.stdout.write(f"::notice file={result.relative_path}::{summary}\n")
 
     # Check for expected config files
     gvar_config_path = (repo_base_path / gvar_config_relative_path)
