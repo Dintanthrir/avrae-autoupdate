@@ -341,6 +341,7 @@ def test_local_alias_does_not_match_avrae(tmp_path):
     )
     assert 'test-alias.alias does not match the active version of test-alias(a11a5)' \
         in result.summary()
+    assert '\n'.join(['- current code', '+ new code']) == result.diff()
 
     # When local changes have introduced new code
     client = Mock(AvraeClient)
@@ -382,6 +383,7 @@ def test_local_alias_docs_do_not_match_avrae(tmp_path):
         alias
     )
     assert 'test-alias.md does not match the current docs for test-alias(a11a5)' in result.summary()
+    assert '\n'.join(['- docs', '+ new docs']) == result.diff()
 
     client = Mock(AvraeClient)
     result.apply(client)
@@ -501,6 +503,7 @@ def test_local_snippet_does_not_match_avrae(tmp_path):
     )
     assert 'test.snippet does not match the active version of test(54177e7)' \
         in result.summary()
+    assert '\n'.join(['- snippet code', '+ new code']) == result.diff()
 
     # When local changes have introduced new code
     client = Mock(AvraeClient)
@@ -539,6 +542,7 @@ def test_local_snippet_docs_do_not_match_avrae(tmp_path):
         snippet
     )
     assert 'test.md does not match the current docs for test(54177e7)' in result.summary()
+    assert '\n'.join(['- docs', '+ new docs']) == result.diff()
 
     client = Mock(AvraeClient)
     result.apply(client)
@@ -609,6 +613,7 @@ def test_local_gvar_does_not_match_avrae(tmp_path):
         gvar
     )
     assert 'test.gvar does not match 123abc in Avrae' in result.summary()
+    assert '\n'.join(['- gvar code', '+ new gvar code', '? ++++\n']) == result.diff()
 
     client = Mock(AvraeClient)
     result.apply(client)

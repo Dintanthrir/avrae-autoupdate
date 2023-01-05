@@ -18,7 +18,6 @@ from .avrae import (
     Snippet,
 )
 
-
 class ComparisonResult(ABC):
     """
     The result of a comparison between a single resource in the current repository and the avrae API
@@ -61,6 +60,18 @@ class UpdatesRepository(ABC):
     def apply(self):
         """
         Resolves a mismatch between local and avrae sat by applying changes to the local repository
+        """
+
+class DiffableResult(ABC):
+    """
+    A comparison result able to produce a diff (via Differ) between the local and Avrae versions
+    of a resource.
+    """
+
+    @abstractmethod
+    def diff(self) -> str:
+        """
+        Returns a string containing the Differ output
         """
 
 # Aliases
@@ -131,18 +142,23 @@ class LocalAliasDocsMissing(_AliasComparisonResultWithAlias, UpdatesRepository):
             alias_file.write(self.alias.docs)
 
 
-class LocalAliasDoesNotMatchAvrae(_AliasComparisonResultWithAlias, UpdatesAvrae):
+class LocalAliasDoesNotMatchAvrae(_AliasComparisonResultWithAlias, UpdatesAvrae, DiffableResult):
     """
     The local .alias file contains code which does not match the active version on avrae.
     """
 
     def summary(self) -> str:
-        heading = f"{self.relative_path} does not match the active version of " \
-                f"{self.alias.name}({self.alias.id})\n"
+        return f"{self.relative_path} does not match the active version of " \
+                f"{self.alias.name}({self.alias.id})"
+
+    def diff(self) -> str:
         differ = Differ()
         with open(self.path, mode='r', encoding='utf-8') as alias_file:
-            diff = differ.compare(alias_file.readlines(), self.alias.code.splitlines(keepends=True))
-            return ''.join(chain([heading, '\n'], diff))
+            diff = differ.compare(
+                self.alias.code.splitlines(keepends=True),
+                alias_file.readlines()
+            )
+            return '\n'.join(diff)
 
     def apply(self, client: AvraeClient):
         matching_version = client.recent_matching_version(item=self.alias)
@@ -154,18 +170,23 @@ class LocalAliasDoesNotMatchAvrae(_AliasComparisonResultWithAlias, UpdatesAvrae)
                 )
                 client.set_active_code_version(item=self.alias, version=new_version)
 
-class LocalAliasDocsDoNotMatchAvrae(_AliasComparisonResultWithAlias, UpdatesAvrae):
+class LocalAliasDocsDoNotMatchAvrae(_AliasComparisonResultWithAlias, UpdatesAvrae, DiffableResult):
     """
     The local doc markdown file does not match the current docs in the avrae collection.
     """
 
     def summary(self) -> str:
-        heading = f"{self.relative_path} does not match the current docs for " \
-            f"{self.alias.name}({self.alias.id})\n"
+        return f"{self.relative_path} does not match the current docs for " \
+            f"{self.alias.name}({self.alias.id})"
+
+    def diff(self) -> str:
         differ = Differ()
         with open(self.path, mode='r', encoding='utf-8') as docs_file:
-            diff = differ.compare(docs_file.readlines(), self.alias.docs.splitlines(keepends=True))
-            return ''.join(chain([heading, '\n'], diff))
+            diff = differ.compare(
+                self.alias.docs.splitlines(keepends=True),
+                docs_file.readlines()
+            )
+            return '\n'.join(diff)
 
     def apply(self, client: AvraeClient):
         with open(self.path, mode='r', encoding='utf-8') as docs_file:
@@ -246,21 +267,27 @@ class LocalSnippetDocsMissing(_SnippetComparisonResultWithSnippet, UpdatesReposi
             snippet_file.write(self.snippet.docs)
 
 
-class LocalSnippetDoesNotMatchAvrae(_SnippetComparisonResultWithSnippet, UpdatesAvrae):
+class LocalSnippetDoesNotMatchAvrae(
+    _SnippetComparisonResultWithSnippet,
+    UpdatesAvrae,
+    DiffableResult
+):
     """
     The local .snippet file contains code which does not match the active version on avrae.
     """
 
     def summary(self) -> str:
-        heading = f"{self.relative_path} does not match the active version of " \
-            f"{self.snippet.name}({self.snippet.id})\n"
+        return f"{self.relative_path} does not match the active version of " \
+            f"{self.snippet.name}({self.snippet.id})"
+
+    def diff(self) -> str:
         differ = Differ()
         with open(self.path, mode='r', encoding='utf-8') as snippet_file:
             diff = differ.compare(
-                snippet_file.readlines(),
-                self.snippet.code.splitlines(keepends=True)
+                self.snippet.code.splitlines(keepends=True),
+                snippet_file.readlines()
             )
-            return ''.join(chain([heading, '\n'], diff))
+            return '\n'.join(diff)
 
     def apply(self, client: AvraeClient):
         matching_version = client.recent_matching_version(item=self.snippet)
@@ -272,21 +299,27 @@ class LocalSnippetDoesNotMatchAvrae(_SnippetComparisonResultWithSnippet, Updates
                 )
                 client.set_active_code_version(item=self.snippet, version=new_version)
 
-class LocalSnippetDocsDoNotMatchAvrae(_SnippetComparisonResultWithSnippet, UpdatesAvrae):
+class LocalSnippetDocsDoNotMatchAvrae(
+    _SnippetComparisonResultWithSnippet,
+    UpdatesAvrae,
+    DiffableResult
+):
     """
     The local doc markdown file does not match the current docs in the avrae collection.
     """
 
     def summary(self) -> str:
-        heading = f"{self.relative_path} does not match the current docs for " \
-            f"{self.snippet.name}({self.snippet.id})\n"
+        return f"{self.relative_path} does not match the current docs for " \
+            f"{self.snippet.name}({self.snippet.id})"
+
+    def diff(self) -> str:
         differ = Differ()
         with open(self.path, mode='r', encoding='utf-8') as docs_file:
             diff = differ.compare(
-                docs_file.readlines(),
-                self.snippet.docs.splitlines(keepends=True)
+                self.snippet.docs.splitlines(keepends=True),
+                docs_file.readlines()
             )
-            return ''.join(chain([heading, '\n'], diff))
+            return '\n'.join(diff)
 
     def apply(self, client: AvraeClient):
         with open(self.path, mode='r', encoding='utf-8') as docs_file:
@@ -337,18 +370,22 @@ class LocalGvarMissing(_GvarComparisonResultWithGvar, UpdatesRepository):
         with open(self.path, mode='w', encoding='utf-8') as gvar_file:
             gvar_file.write(self.gvar.value)
 
-class LocalGvarDoesNotMatchAvrae(_GvarComparisonResultWithGvar, UpdatesAvrae):
+class LocalGvarDoesNotMatchAvrae(_GvarComparisonResultWithGvar, UpdatesAvrae, DiffableResult):
     """
     The local .gvar file contents do not match the gvar in the avrae collection.
     """
 
     def summary(self) -> str:
-        heading = f"{self.relative_path} does not match {self.gvar.key} in Avrae.\n"
+        return f"{self.relative_path} does not match {self.gvar.key} in Avrae."
+
+    def diff(self) -> str:
         differ = Differ()
         with open(self.path, mode='r', encoding='utf-8') as gvar_file:
-            diff = differ.compare(gvar_file.readlines(), self.gvar.value.splitlines(keepends=True))
-            return ''.join(chain([heading, '\n'], diff))
-
+            diff = differ.compare(
+                self.gvar.value.splitlines(keepends=True),
+                gvar_file.readlines()
+            )
+            return '\n'.join(diff)
 
     def apply(self, client: AvraeClient):
         with open(self.path, mode='r', encoding='utf-8') as gvar_file:
