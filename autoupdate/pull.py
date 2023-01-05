@@ -27,17 +27,17 @@ def pull(
         """
         sys.stdout.write(f"::debug:: Processing {len(comparison_results)} comparison results.\n")
         for result in comparison_results:
-            sys.stdout.write(f"::debug::{result.__class__.__name__}:{result.summary()}\n")
+            sys.stdout.write(f"::debug::{result.__class__.__name__}: {result.summary()}\n")
             if isinstance(result, UpdatesRepository):
-                if isinstance(result, DiffableResult):
-                    sys.stdout.writelines([
-                        f"::group::{result.summary()}\n",
-                        result.diff() + '\n',
-                        "::endgroup::\n"
-                    ])
-                else:
-                    sys.stdout.write(f"::notice file={result.relative_path}::{result.summary()}\n")
                 result.apply()
+            if isinstance(result, DiffableResult):
+                sys.stdout.writelines([
+                    f"::group::{result.summary()}\n",
+                    result.diff() + '\n',
+                    "::endgroup::\n"
+                ])
+            else:
+                sys.stdout.write(f"::notice file={result.relative_path}::{result.summary()}\n")
 
     # Check for expected config files
     gvar_config_path = (repo_base_path / gvar_config_relative_path)
@@ -66,6 +66,7 @@ def pull(
         api_key=api_key,
         collection_ids=collections_config.keys()
     )
+    sys.stdout.write("::debug:: Fetching data from Avrae...\n")
     collections = client.get_collections()
     gvars = client.get_gvars()
     results = compare_repository_with_avrae(
@@ -74,9 +75,13 @@ def pull(
         gvar_config=gvar_config,
         base_path=repo_base_path
     )
+    sys.stdout.write(f"::debug:: Processing {len(collections)} collections.\n")
     for collection_result in results['collections']:
+        sys.stdout.write("::debug:: Comparing aliases.\n")
         apply_repository_changes(collection_result['aliases'])
+        sys.stdout.write("::debug:: Comparing snippets.\n")
         apply_repository_changes(collection_result['snippets'])
+    sys.stdout.write("::debug:: Comparing gvars.\n")
     apply_repository_changes(results['gvars'])
 
     return 0
