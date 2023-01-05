@@ -172,17 +172,12 @@ def _version_from_data(json_data) -> CodeVersion:
         is_current=json_data['is_current']
     )
 
-def _get_collection(api_key: str, collection_id: str) -> Collection:
+def _get_collection(session: requests.Session, collection_id: str) -> Collection:
     """
     Fetch a collection from Avrae
     """
-    path = f'https://api.avrae.io/workshop/collection/{collection_id}/full'
-    headers = {
-        'Authorization': api_key
-    }
-    response = requests.get(
-        url=path,
-        headers=headers,
+    response = session.get(
+        url=f'https://api.avrae.io/workshop/collection/{collection_id}/full',
         timeout=AVRAE_API_TIMEOUT,
     )
     response.raise_for_status()
@@ -192,17 +187,12 @@ def _get_collection(api_key: str, collection_id: str) -> Collection:
                            f'{json.dumps(response_data, indent=4)}')
     return _collection_from_data(response.json()['data'])
 
-def _get_gvars(api_key: str) -> list[Gvar]:
+def _get_gvars(session: requests.Session) -> list[Gvar]:
     """
     Fetch the set of all gvars the user can edit from avrae
     """
-    path = 'https://api.avrae.io/customizations/gvars'
-    headers = {
-        'Authorization': api_key
-    }
-    response = requests.get(
-        url=path,
-        headers=headers,
+    response = session.get(
+        url='https://api.avrae.io/customizations/gvars',
         timeout=AVRAE_API_TIMEOUT,
     )
     response.raise_for_status()
@@ -210,17 +200,13 @@ def _get_gvars(api_key: str) -> list[Gvar]:
     return _gvars_from_data(response_data)
 
 def _recent_matching_version(
-    api_key: str,
+    session: requests.Session,
     resource_type: typing.Literal['snippet'] | typing.Literal['alias'],
     item_id: str,
     code: str
     ) -> CodeVersion | None:
     item_limit = 10
     request_limit = 5 # better to skip the oldest versions than flood avrae with requests
-
-    headers = {
-        'Authorization': api_key
-    }
 
     skip = 0
     page = 0
@@ -233,9 +219,8 @@ def _recent_matching_version(
             f'?skip={skip}&limit={item_limit}'
         )
 
-        response = requests.get(
+        response = session.get(
             url=path,
-            headers=headers,
             timeout=AVRAE_API_TIMEOUT,
         )
         response.raise_for_status()
@@ -266,6 +251,12 @@ class AvraeClient():
         self.api_key = api_key
         self.collection_ids = collection_ids
 
+        self.session = requests.Session()
+        self.session.headers.update({
+            'Authorization': self.api_key,
+            'User-Agent': 'avrae-autoupdate',
+        })
+
     def _clear_collection_from_cache(self, collection_id: str):
         if self._collections is None:
             return
@@ -283,7 +274,7 @@ class AvraeClient():
         if not self._collections:
             self._collections = [
                 _get_collection(
-                    api_key=self.api_key,
+                    session=self.session,
                     collection_id=collection_id
                 ) for collection_id in self.collection_ids
             ]
@@ -307,7 +298,7 @@ class AvraeClient():
         """
 
         if not self._gvars:
-            self._gvars = _get_gvars(api_key=self.api_key)
+            self._gvars = _get_gvars(session=self.session)
         return self._gvars
 
     def recent_matching_version(self, item: Alias | Snippet) -> CodeVersion | None:
@@ -319,7 +310,7 @@ class AvraeClient():
         """
 
         return _recent_matching_version(
-            api_key=self.api_key,
+            session=self.session,
             resource_type='alias' if isinstance(item, Alias) else 'snippet',
             item_id=item.id,
             code=item.code
@@ -331,11 +322,8 @@ class AvraeClient():
         """
 
         resource_type='alias' if isinstance(item, Alias) else 'snippet'
-        response = requests.post(
+        response = self.session.post(
             url=f'https://api.avrae.io/workshop/{resource_type}/{item.id}/code',
-            headers={
-                'Authorization': self.api_key
-            },
             timeout=AVRAE_API_TIMEOUT,
             json={
                 'content': code
@@ -357,11 +345,8 @@ class AvraeClient():
         """
 
         resource_type='alias' if isinstance(item, Alias) else 'snippet'
-        response = requests.put(
+        response = self.session.put(
             url=f'https://api.avrae.io/workshop/{resource_type}/{item.id}/active-code',
-            headers={
-                'Authorization': self.api_key
-            },
             timeout=AVRAE_API_TIMEOUT,
             json={
                 'version': version
@@ -386,11 +371,8 @@ class AvraeClient():
         """
 
         resource_type='alias' if isinstance(item, Alias) else 'snippet'
-        response = requests.patch(
+        response = self.session.patch(
             url=f'https://api.avrae.io/workshop/{resource_type}/{item.id}',
-            headers={
-                'Authorization': self.api_key
-            },
             timeout=AVRAE_API_TIMEOUT,
             json={
                 'docs': yaml,
@@ -413,11 +395,8 @@ class AvraeClient():
         Updates the contents of the given gvar.
         """
 
-        response = requests.post(
+        response = self.session.post(
             url=f'https://api.avrae.io/customizations/gvars/{gvar.key}',
-            headers={
-                'Authorization': self.api_key
-            },
             timeout=AVRAE_API_TIMEOUT,
             json={
                 'value': value
