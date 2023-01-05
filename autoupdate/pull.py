@@ -8,7 +8,7 @@ from pathlib import Path
 import sys
 
 from .avrae import AvraeClient
-from .sources import ComparisonResult, UpdatesRepository, compare_repository_with_avrae
+from .sources import ComparisonResult, DiffableResult, UpdatesRepository, compare_repository_with_avrae
 
 def pull(
     repo_base_path: Path,
@@ -29,8 +29,14 @@ def pull(
         for result in comparison_results:
             sys.stdout.write(f"::debug::{result.__class__.__name__}:{result.summary()}/n")
             if isinstance(result, UpdatesRepository):
-                sys.stdout.write(result.summary())
-                sys.stdout.write("/n")
+                if isinstance(result, DiffableResult):
+                    sys.stdout.writelines([
+                        f"::group::{result.summary()}\n",
+                        result.diff() + '\n',
+                        "::endgroup::\n"
+                    ])
+                else:
+                    sys.stdout.write(f"::notice file={result.relative_path}::{result.summary()}\n")
                 result.apply()
 
     # Check for expected config files
