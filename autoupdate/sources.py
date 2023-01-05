@@ -5,6 +5,7 @@ with the local repository.
 """
 
 from abc import ABC, abstractmethod
+from difflib import Differ
 from itertools import chain
 import os
 from pathlib import Path
@@ -136,8 +137,12 @@ class LocalAliasDoesNotMatchAvrae(_AliasComparisonResultWithAlias, UpdatesAvrae)
     """
 
     def summary(self) -> str:
-        return f"{self.relative_path} does not match the active version of " \
-            f"{self.alias.name}({self.alias.id})"
+        heading = f"{self.relative_path} does not match the active version of " \
+                f"{self.alias.name}({self.alias.id})\n"
+        differ = Differ()
+        with open(self.path, mode='r', encoding='utf-8') as alias_file:
+            diff = differ.compare(alias_file.readlines(), self.alias.code.splitlines(keepends=True))
+            return ''.join(chain([heading, '\n'], diff))
 
     def apply(self, client: AvraeClient):
         matching_version = client.recent_matching_version(item=self.alias)
@@ -155,8 +160,12 @@ class LocalAliasDocsDoNotMatchAvrae(_AliasComparisonResultWithAlias, UpdatesAvra
     """
 
     def summary(self) -> str:
-        return f"{self.relative_path} does not match the current docs for " \
-            f"{self.alias.name}({self.alias.id})"
+        heading = f"{self.relative_path} does not match the current docs for " \
+            f"{self.alias.name}({self.alias.id})\n"
+        differ = Differ()
+        with open(self.path, mode='r', encoding='utf-8') as docs_file:
+            diff = differ.compare(docs_file.readlines(), self.alias.docs.splitlines(keepends=True))
+            return ''.join(chain([heading, '\n'], diff))
 
     def apply(self, client: AvraeClient):
         with open(self.path, mode='r', encoding='utf-8') as docs_file:
@@ -243,8 +252,15 @@ class LocalSnippetDoesNotMatchAvrae(_SnippetComparisonResultWithSnippet, Updates
     """
 
     def summary(self) -> str:
-        return f"{self.relative_path} does not match the active version of " \
-            f"{self.snippet.name}({self.snippet.id})"
+        heading = f"{self.relative_path} does not match the active version of " \
+            f"{self.snippet.name}({self.snippet.id})\n"
+        differ = Differ()
+        with open(self.path, mode='r', encoding='utf-8') as snippet_file:
+            diff = differ.compare(
+                snippet_file.readlines(),
+                self.snippet.code.splitlines(keepends=True)
+            )
+            return ''.join(chain([heading, '\n'], diff))
 
     def apply(self, client: AvraeClient):
         matching_version = client.recent_matching_version(item=self.snippet)
@@ -262,8 +278,15 @@ class LocalSnippetDocsDoNotMatchAvrae(_SnippetComparisonResultWithSnippet, Updat
     """
 
     def summary(self) -> str:
-        return f"{self.relative_path} does not match the current docs for " \
-            f"{self.snippet.name}({self.snippet.id})"
+        heading = f"{self.relative_path} does not match the current docs for " \
+            f"{self.snippet.name}({self.snippet.id})\n"
+        differ = Differ()
+        with open(self.path, mode='r', encoding='utf-8') as docs_file:
+            diff = differ.compare(
+                docs_file.readlines(),
+                self.snippet.docs.splitlines(keepends=True)
+            )
+            return ''.join(chain([heading, '\n'], diff))
 
     def apply(self, client: AvraeClient):
         with open(self.path, mode='r', encoding='utf-8') as docs_file:
@@ -320,7 +343,12 @@ class LocalGvarDoesNotMatchAvrae(_GvarComparisonResultWithGvar, UpdatesAvrae):
     """
 
     def summary(self) -> str:
-        return f"{self.relative_path} does not match {self.gvar.key} in Avrae"
+        heading = f"{self.relative_path} does not match {self.gvar.key} in Avrae.\n"
+        differ = Differ()
+        with open(self.path, mode='r', encoding='utf-8') as gvar_file:
+            diff = differ.compare(gvar_file.readlines(), self.gvar.value.splitlines(keepends=True))
+            return ''.join(chain([heading, '\n'], diff))
+
 
     def apply(self, client: AvraeClient):
         with open(self.path, mode='r', encoding='utf-8') as gvar_file:
