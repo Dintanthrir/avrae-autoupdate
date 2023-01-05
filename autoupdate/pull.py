@@ -25,9 +25,9 @@ def pull(
         """
         From the set of all ComparisonResults apply only those which update the repository.
         """
-        sys.stdout.write(f"::debug:: Processing {len(comparison_results)} comparison results./n")
+        sys.stdout.write(f"::debug:: Processing {len(comparison_results)} comparison results.\n")
         for result in comparison_results:
-            sys.stdout.write(f"::debug::{result.__class__.__name__}:{result.summary()}/n")
+            sys.stdout.write(f"::debug::{result.__class__.__name__}:{result.summary()}\n")
             if isinstance(result, UpdatesRepository):
                 if isinstance(result, DiffableResult):
                     sys.stdout.writelines([
