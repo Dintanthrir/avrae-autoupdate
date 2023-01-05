@@ -1,3 +1,7 @@
+"""
+Pull changes from Avrae, creating any missing source files and documentation.
+"""
+
 import json
 import os
 from pathlib import Path
