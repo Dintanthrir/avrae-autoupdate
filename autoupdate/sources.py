@@ -170,7 +170,7 @@ class LocalAliasDoesNotMatchAvrae(_AliasComparisonResultWithAlias, UpdatesAvrae,
                     item=self.alias,
                     code=code
                 )
-                client.set_active_code_version(item=self.alias, version=new_version)
+                client.set_active_code_version(item=self.alias, version=new_version.version)
             else:
                 sys.stdout.write(f"::debug::repo matches version {matching_version.version}," \
                     " skipping.")
@@ -303,7 +303,7 @@ class LocalSnippetDoesNotMatchAvrae(
                     item=self.snippet,
                     code=code
                 )
-                client.set_active_code_version(item=self.snippet, version=new_version)
+                client.set_active_code_version(item=self.snippet, version=new_version.version)
 
 class LocalSnippetDocsDoNotMatchAvrae(
     _SnippetComparisonResultWithSnippet,
