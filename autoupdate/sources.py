@@ -53,7 +53,7 @@ class UpdatesAvrae(ABC):
 
 class UpdatesRepository(ABC):
     """
-    A comparison results which can be resolved by applying changes to the local repository
+    A comparison result which can be resolved by applying changes to the local repository
     """
 
     @abstractmethod
