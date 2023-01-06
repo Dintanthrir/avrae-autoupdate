@@ -2,11 +2,8 @@
 Tools for interacting with Avrae's API
 """
 
-from http.client import HTTPConnection
 from itertools import chain
 import json
-import logging
-import sys
 import typing
 import requests
 
@@ -233,19 +230,8 @@ def _recent_matching_version(
                            f'{json.dumps(response_data, indent=4)}')
         versions_data = response.json()['data']
 
-        sys.stdout.write(
-            "::debug::_recent_matching_version " \
-            f"https://api.avrae.io/workshop/{resource_type}/{item_id}/code " \
-            f"{json.dumps(versions_data)}\n"
-        )
-
         for version_data in versions_data:
             if version_data['content'] == code:
-                sys.stdout.write(
-                    "::debug::_recent_matching_version match found " \
-                    f" content: '{version_data['content']}' " \
-                    f" code: '{code}' \n"
-                )
                 return _version_from_data(version_data)
 
         skip += len(versions_data)
@@ -270,13 +256,6 @@ class AvraeClient():
             'Authorization': self.api_key,
             'User-Agent': 'avrae-autoupdate',
         })
-
-        HTTPConnection.debuglevel = 1
-        logging.basicConfig(format='::DEBUG::%(message)s', stream=sys.stdout)
-        logging.getLogger().setLevel(logging.DEBUG)
-        requests_log = logging.getLogger("requests.packages.urllib3")
-        requests_log.setLevel(logging.DEBUG)
-        requests_log.propagate = True
 
     def _clear_collection_from_cache(self, collection_id: str):
         if collection_id in self._collections:
@@ -382,12 +361,6 @@ class AvraeClient():
                 f'{json.dumps(response_data, indent=4)}')
         self._clear_collection_from_cache(item.collection_id)
 
-        sys.stdout.write(
-            "::debug::create_new_code_version " \
-            f"https://api.avrae.io/workshop/{resource_type}/{item.id}/code " \
-            f"{json.dumps(response_data)}\n"
-        )
-
         new_version = _version_from_data(response_data['data'])
         return new_version
 
@@ -404,21 +377,13 @@ class AvraeClient():
                 'version': version
             }
         )
-        sys.stdout.write(
-            f"::debug::active-code response: {response.text}"
-        )
+
         response.raise_for_status()
         response_data = response.json()
         if not response_data['success']:
             raise RequestError(f'{resource_type}/{id} failed to activate code version.\n'
                 f'{response.request.body} returned {json.dumps(response_data, indent=4)}')
         self._clear_collection_from_cache(item.collection_id)
-
-        sys.stdout.write(
-            "::debug::set_active_code_version " \
-            f"https://api.avrae.io/workshop/{resource_type}/{item.id}/active-code " \
-            f"{json.dumps(response_data)}\n"
-        )
 
         if isinstance(item, Alias):
             return _alias_from_data(response_data['data'])
@@ -447,12 +412,6 @@ class AvraeClient():
                 f'{json.dumps(response_data, indent=4)}')
         self._clear_collection_from_cache(item.collection_id)
 
-        sys.stdout.write(
-            "::debug::update_docs " \
-            f"https://api.avrae.io/workshop/{resource_type}/{item.id} " \
-            f"{json.dumps(response_data)}\n"
-        )
-
         if isinstance(item, Alias):
             return _alias_from_data(response_data['data'])
         return _snippet_from_data(response_data['data'])
@@ -473,9 +432,3 @@ class AvraeClient():
         response_content = response.content.decode('ascii')
         if response_content != 'Gvar updated.':
             raise RequestError(f'Updating gvar {gvar.key} failed.\n{response_content}')
-
-        sys.stdout.write(
-            "::debug::update_gvar " \
-            f"https://api.avrae.io/customizations/gvars/{gvar.key} " \
-            f"{response}\n"
-        )

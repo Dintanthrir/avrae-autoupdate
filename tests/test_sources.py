@@ -346,7 +346,9 @@ def test_local_alias_does_not_match_avrae(tmp_path):
     # When local changes have introduced new code
     client = Mock(AvraeClient)
     client.recent_matching_version.return_value = None
-    client.create_new_code_version.return_value = 2
+    client.create_new_code_version.return_value = CodeVersion(
+        version=2, content=alias.code, created_at='', is_current=True
+    )
     result.apply(client)
     client.create_new_code_version.assert_called_once_with(item=alias, code='new code')
     client.set_active_code_version.assert_called_once_with(item=alias, version=2)
@@ -508,7 +510,9 @@ def test_local_snippet_does_not_match_avrae(tmp_path):
     # When local changes have introduced new code
     client = Mock(AvraeClient)
     client.recent_matching_version.return_value = None
-    client.create_new_code_version.return_value = 2
+    client.create_new_code_version.return_value = CodeVersion(
+        version=2, content=snippet.code, created_at='', is_current=True
+    )
     result.apply(client)
     client.create_new_code_version.assert_called_once_with(item=snippet, code='new code')
     client.set_active_code_version.assert_called_once_with(item=snippet, version=2)
