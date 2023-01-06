@@ -239,6 +239,11 @@ def _recent_matching_version(
 
         for version_data in versions_data:
             if version_data['content'] == code:
+                sys.stdout.write(
+                    "::debug::_recent_matching_version match found " \
+                    f" content: '{version_data['content']}' " \
+                    f" code: '{code}' \n"
+                )
                 return _version_from_data(version_data)
 
         skip += len(versions_data)
