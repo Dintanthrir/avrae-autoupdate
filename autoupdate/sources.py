@@ -9,6 +9,7 @@ from difflib import Differ
 from itertools import chain
 import os
 from pathlib import Path
+import sys
 
 from .avrae import (
     Alias,
@@ -169,6 +170,8 @@ class LocalAliasDoesNotMatchAvrae(_AliasComparisonResultWithAlias, UpdatesAvrae,
                     code=alias_file.read()
                 )
                 client.set_active_code_version(item=self.alias, version=new_version)
+        else:
+            sys.stdout.write(f"::debug::repo matches version {matching_version.version}, skipping.")
 
 class LocalAliasDocsDoNotMatchAvrae(_AliasComparisonResultWithAlias, UpdatesAvrae, DiffableResult):
     """

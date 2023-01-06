@@ -230,6 +230,13 @@ def _recent_matching_version(
             raise RequestError(f'{resource_type}/{item_id} failed to fetch code versions.\n'
                            f'{json.dumps(response_data, indent=4)}')
         versions_data = response.json()['data']
+
+        sys.stdout.write(
+            "::debug::_recent_matching_version " \
+            f"https://api.avrae.io/workshop/{resource_type}/{item_id}/code " \
+            f"{json.dumps(versions_data)}\n"
+        )
+
         for version_data in versions_data:
             if version_data['content'] == code:
                 return _version_from_data(version_data)
