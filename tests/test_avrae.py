@@ -224,7 +224,7 @@ def test_avrae_client_recent_matching_version_aliases_with_long_history(requests
         subcommands=[],
         parent_id=None,
         ))
-    assert version.version is 22
+    assert version.version == 22
 
 def test_avrae_client_recent_matching_version_snippet(requests_mock):
     collection_id = 'c011ec7104'

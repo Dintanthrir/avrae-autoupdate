@@ -244,11 +244,11 @@ class AvraeClient():
     Caches collection and gvar responses to avoid repeated API calls when possible.
     """
 
-    _collections: dict[Collection] | None = {}
-    _gvars: list[Gvar] | None = None
-
     def __init__(self, api_key: str) -> None:
         self.api_key = api_key
+
+        self._collections: dict[Collection] = {}
+        self._gvars: list[Gvar] | None = None
 
         self.session = requests.Session()
         self.session.headers.update({
