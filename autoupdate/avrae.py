@@ -4,6 +4,7 @@ Tools for interacting with Avrae's API
 
 from itertools import chain
 import json
+import sys
 import typing
 import requests
 
@@ -354,10 +355,17 @@ class AvraeClient():
         )
         response.raise_for_status()
         response_data = response.json()
+
         if not response_data['success']:
             raise RequestError(f'{resource_type}/{id} failed to create new code versions.\n'
                 f'{json.dumps(response_data, indent=4)}')
         self._clear_collection_from_cache(item.collection_id)
+
+        sys.stdout.write(
+            "::debug::create_new_code_version " \
+            f"https://api.avrae.io/workshop/{resource_type}/{item.id}/code " \
+            f"{json.dumps(response_data)}\n"
+        )
 
         new_version = _version_from_data(response_data['data'])
         return new_version
@@ -381,6 +389,12 @@ class AvraeClient():
             raise RequestError(f'{resource_type}/{id} failed to create new code versions.\n'
                 f'{json.dumps(response_data, indent=4)}')
         self._clear_collection_from_cache(item.collection_id)
+
+        sys.stdout.write(
+            "::debug::set_active_code_version " \
+            f"https://api.avrae.io/workshop/{resource_type}/{item.id}/active-code " \
+            f"{json.dumps(response_data)}\n"
+        )
 
         if isinstance(item, Alias):
             return _alias_from_data(response_data['data'])
@@ -409,6 +423,12 @@ class AvraeClient():
                 f'{json.dumps(response_data, indent=4)}')
         self._clear_collection_from_cache(item.collection_id)
 
+        sys.stdout.write(
+            "::debug::update_docs " \
+            f"https://api.avrae.io/workshop/{resource_type}/{item.id} " \
+            f"{json.dumps(response_data)}\n"
+        )
+
         if isinstance(item, Alias):
             return _alias_from_data(response_data['data'])
         return _snippet_from_data(response_data['data'])
@@ -429,3 +449,9 @@ class AvraeClient():
         response_content = response.content.decode('ascii')
         if response_content != 'Gvar updated.':
             raise RequestError(f'Updating gvar {gvar.key} failed.\n{response_content}')
+
+        sys.stdout.write(
+            "::debug::update_gvar " \
+            f"https://api.avrae.io/customizations/gvars/{gvar.key} " \
+            f"{response}\n"
+        )
