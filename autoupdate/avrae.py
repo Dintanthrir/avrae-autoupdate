@@ -2,8 +2,10 @@
 Tools for interacting with Avrae's API
 """
 
+from http.client import HTTPConnection
 from itertools import chain
 import json
+import logging
 import sys
 import typing
 import requests
@@ -269,6 +271,13 @@ class AvraeClient():
             'User-Agent': 'avrae-autoupdate',
         })
 
+        HTTPConnection.debuglevel = 1
+        logging.basicConfig(format='::DEBUG::%(message)s', stream=sys.stdout)
+        logging.getLogger().setLevel(logging.DEBUG)
+        requests_log = logging.getLogger("requests.packages.urllib3")
+        requests_log.setLevel(logging.DEBUG)
+        requests_log.propagate = True
+
     def _clear_collection_from_cache(self, collection_id: str):
         if collection_id in self._collections:
             del self._collections[collection_id]
@@ -395,11 +404,14 @@ class AvraeClient():
                 'version': version
             }
         )
+        sys.stdout.write(
+            f"::debug::active-code response: {response.text}"
+        )
         response.raise_for_status()
         response_data = response.json()
         if not response_data['success']:
-            raise RequestError(f'{resource_type}/{id} failed to create new code versions.\n'
-                f'{json.dumps(response_data, indent=4)}')
+            raise RequestError(f'{resource_type}/{id} failed to activate code version.\n'
+                f'{response.request.body} returned {json.dumps(response_data, indent=4)}')
         self._clear_collection_from_cache(item.collection_id)
 
         sys.stdout.write(
