@@ -28,7 +28,3 @@ jobs:
           collections: ${{ inputs.collections }}
           gvars: ${{ inputs.gvars }}
           avrae_token: ${{ secrets.avrae_token }}
-      - name: Report results
-        if: ${{ success() }}
-        run: |
-          echo "## Changes published to Avrae" >> $GITHUB_STEP_SUMMARY
