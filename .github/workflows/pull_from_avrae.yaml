@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: Dintanthrir/avrae-autoupdate/actions/pull@add_github_workflows
+      - uses: Dintanthrir/avrae-autoupdate/actions/pull@main
         with:
           collections: ${{ inputs.collections }}
           gvars: ${{ inputs.gvars }}
