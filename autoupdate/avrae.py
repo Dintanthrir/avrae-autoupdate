@@ -183,9 +183,9 @@ def _get_collection(session: requests.Session, collection_id: str) -> Collection
     response.raise_for_status()
     response_data = response.json()
     if not response_data['success']:
-        raise RequestError(f'{collection_id} collection data grab did not succeed.\n'
+        raise RequestError(f'Fetching collection {collection_id} did not succeed.\n'
                            f'{json.dumps(response_data, indent=4)}')
-    return _collection_from_data(response.json()['data'])
+    return _collection_from_data(response_data['data'])
 
 def _get_gvars(session: requests.Session) -> list[Gvar]:
     """
@@ -244,12 +244,11 @@ class AvraeClient():
     Caches collection and gvar responses to avoid repeated API calls when possible.
     """
 
-    _collections: list[Collection] | None = None
+    _collections: dict[Collection] | None = {}
     _gvars: list[Gvar] | None = None
 
-    def __init__(self, api_key: str, collection_ids: list[str]) -> None:
+    def __init__(self, api_key: str) -> None:
         self.api_key = api_key
-        self.collection_ids = collection_ids
 
         self.session = requests.Session()
         self.session.headers.update({
@@ -258,39 +257,33 @@ class AvraeClient():
         })
 
     def _clear_collection_from_cache(self, collection_id: str):
-        if self._collections is None:
-            return
-        self._collections = list(
-            filter(
-                lambda collection: collection.id != collection_id, self._collections
-            )
-        )
+        if collection_id in self._collections:
+            del self._collections[collection_id]
 
-    def get_collections(self) -> list[Collection]:
+    def get_collections(self, collection_ids: list[str]) -> list[Collection]:
         """
         Return the set of collections registered with this client.
         """
 
-        if not self._collections:
-            self._collections = [
-                _get_collection(
+        results: list[Collection] = []
+        for collection_id in collection_ids:
+            if collection_id in self._collections:
+                results.append(self._collections[collection_id])
+            else:
+                collection = _get_collection(
                     session=self.session,
                     collection_id=collection_id
-                ) for collection_id in self.collection_ids
-            ]
-        return self._collections
+                )
+                self._collections[collection_id] = collection
+                results.append(collection)
+        return results
 
     def get_collection(self, collection_id: str) -> Collection | None:
         """
         Return a specific collection registered with this client.
         """
 
-        return next(
-            filter(
-                lambda collection: collection.id == collection_id, self.get_collections()
-            ),
-            None
-        )
+        return self.get_collections(collection_ids=[collection_id])[0]
 
     def get_gvars(self) -> list[Gvar]:
         """
@@ -300,6 +293,36 @@ class AvraeClient():
         if not self._gvars:
             self._gvars = _get_gvars(session=self.session)
         return self._gvars
+
+    def get_owned_collection_ids(self) -> list[str]:
+        """
+        Return a list of the ids of collections owned by this account.
+        """
+        response = self.session.get(
+            url='https://api.avrae.io/workshop/owned',
+            timeout=AVRAE_API_TIMEOUT,
+        )
+        response.raise_for_status()
+        response_data = response.json()
+        if not response_data['success']:
+            raise RequestError(f'Fetching owned collections did not succeed.\n'
+                           f'{json.dumps(response_data, indent=4)}')
+        return response_data['data']
+
+    def get_editable_collection_ids(self) -> list[str]:
+        """
+        Return a list of the ids of collections editable by but not owned by this account.
+        """
+        response = self.session.get(
+            url='https://api.avrae.io/workshop/editable',
+            timeout=AVRAE_API_TIMEOUT,
+        )
+        response.raise_for_status()
+        response_data = response.json()
+        if not response_data['success']:
+            raise RequestError(f'Fetching editable collections did not succeed.\n'
+                           f'{json.dumps(response_data, indent=4)}')
+        return response_data['data']
 
     def recent_matching_version(self, item: Alias | Snippet) -> CodeVersion | None:
         """

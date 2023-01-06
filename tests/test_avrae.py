@@ -26,7 +26,7 @@ API_KEY = 'some-api-key-value'
 def test_avrae_client_get_collections(requests_mock):
     collection_ids = ['5fa19a9814a62cb7e811c5c4', '637febd016eb2e36c2591b47']
 
-    client = AvraeClient(api_key=API_KEY, collection_ids=collection_ids)
+    client = AvraeClient(api_key=API_KEY)
     with open(TEST_COLLECTION_RESPONSE_PATH, mode='rb') as collection_1_response, \
         open(TEST_COLLECTION_RESPONSE_PATH, mode='rb') as collection_2_response:
         requests_mock.get(
@@ -40,17 +40,17 @@ def test_avrae_client_get_collections(requests_mock):
             body=collection_2_response
         )
 
-        assert len(client.get_collections()) == len(collection_ids)
+        assert len(client.get_collections(collection_ids=collection_ids)) == len(collection_ids)
 
         # collections should be cached and only requested once
-        client.get_collections()
+        client.get_collections(collection_ids=collection_ids)
         assert len(requests_mock.request_history) == len(collection_ids)
 
 
 def test_avrae_client_get_collection(requests_mock, collection_fixtures):
     collection_id = '5fa19a9814a62cb7e811c5c4'
 
-    client = AvraeClient(api_key=API_KEY, collection_ids=[collection_id])
+    client = AvraeClient(api_key=API_KEY)
     with open(TEST_COLLECTION_RESPONSE_PATH, mode='rb') as collection_response:
         requests_mock.get(
             f'https://api.avrae.io/workshop/collection/{collection_id}/full',
@@ -65,7 +65,7 @@ def test_avrae_client_get_collection(requests_mock, collection_fixtures):
         assert len(requests_mock.request_history) == 1
 
 def test_avrae_client_gvars(requests_mock, gvars_fixture):
-    client = AvraeClient(api_key=API_KEY, collection_ids=[])
+    client = AvraeClient(api_key=API_KEY)
     with open(GVAR_RESPONSE_PATH, mode='rb') as gvars_response:
         requests_mock.get(
             'https://api.avrae.io/customizations/gvars',
@@ -79,11 +79,39 @@ def test_avrae_client_gvars(requests_mock, gvars_fixture):
         assert gvars == client.get_gvars()
         assert len(requests_mock.request_history) == 1
 
+def test_get_owned_collection_ids(requests_mock):
+    client = AvraeClient(api_key=API_KEY)
+    requests_mock.get(
+        'https://api.avrae.io/workshop/owned',
+        request_headers={'Authorization': API_KEY},
+        json={
+            'success': True,
+            'data': ['a', 'b', 'c']
+        }
+    )
+    ids = client.get_owned_collection_ids()
+    assert ids == ['a', 'b', 'c']
+    assert len(requests_mock.request_history) == 1
+
+def test_get_editable_collection_ids(requests_mock):
+    client = AvraeClient(api_key=API_KEY)
+    requests_mock.get(
+        'https://api.avrae.io/workshop/editable',
+        request_headers={'Authorization': API_KEY},
+        json={
+            'success': True,
+            'data': ['a', 'b', 'c']
+        }
+    )
+    ids = client.get_editable_collection_ids()
+    assert ids == ['a', 'b', 'c']
+    assert len(requests_mock.request_history) == 1
+
 def test_avrae_client_recent_matching_version_aliases(requests_mock):
     collection_id = 'c011ec7104'
     alias_id = 'a11a5'
 
-    client = AvraeClient(api_key=API_KEY, collection_ids=[])
+    client = AvraeClient(api_key=API_KEY)
     requests_mock.get(
         f'https://api.avrae.io/workshop/alias/{alias_id}/code?skip=0&limit=10',
         request_headers={'Authorization': API_KEY},
@@ -154,7 +182,7 @@ def test_avrae_client_recent_matching_version_aliases_with_long_history(requests
     collection_id = 'c011ec7104'
     alias_id = 'a11a5'
 
-    client = AvraeClient(api_key=API_KEY, collection_ids=[])
+    client = AvraeClient(api_key=API_KEY)
     for page in range(0, 7):
         requests_mock.get(
             f'https://api.avrae.io/workshop/alias/{alias_id}/code?skip={page * 10}&limit=10',
@@ -202,7 +230,7 @@ def test_avrae_client_recent_matching_version_snippet(requests_mock):
     collection_id = 'c011ec7104'
     snippet_id = '54188e7'
 
-    client = AvraeClient(api_key=API_KEY, collection_ids=[collection_id])
+    client = AvraeClient(api_key=API_KEY)
     requests_mock.get(
         f'https://api.avrae.io/workshop/snippet/{snippet_id}/code?skip=0&limit=10',
         request_headers={'Authorization': API_KEY},
@@ -261,7 +289,7 @@ def test_avrae_client_recent_matching_version_snippet(requests_mock):
     assert version is None
 
 def test_avrae_client_create_new_code_version(requests_mock):
-    client = AvraeClient(api_key=API_KEY, collection_ids=[])
+    client = AvraeClient(api_key=API_KEY)
     alias = Alias(
         name="test-alias",
         code="old code",
@@ -297,7 +325,7 @@ def test_avrae_client_create_new_code_version(requests_mock):
     )
 
 def test_avrae_client_set_active_code_version(requests_mock):
-    client = AvraeClient(api_key=API_KEY, collection_ids=[])
+    client = AvraeClient(api_key=API_KEY)
     alias = Alias(
         name="test-alias",
         code="current code",
@@ -348,7 +376,7 @@ def test_avrae_client_set_active_code_version(requests_mock):
     }
 
 def test_avrae_client_update_gvar(requests_mock):
-    client = AvraeClient(api_key=API_KEY, collection_ids=[])
+    client = AvraeClient(api_key=API_KEY)
     gvar = Gvar(
         owner='1234',
         key='123abc',
@@ -368,7 +396,7 @@ def test_avrae_client_update_gvar(requests_mock):
     }
 
 def test_update_docs(requests_mock):
-    client = AvraeClient(api_key=API_KEY, collection_ids=[])
+    client = AvraeClient(api_key=API_KEY)
     alias = Alias(
         name="test-alias",
         code="code",

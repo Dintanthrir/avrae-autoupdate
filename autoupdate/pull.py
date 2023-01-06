@@ -86,12 +86,9 @@ def pull(
     with open(collections_config_path, mode='r', encoding='utf-8') as collections_config_file:
         collections_config = json.load(collections_config_file)
 
-    client = AvraeClient(
-        api_key=api_key,
-        collection_ids=collections_config.keys()
-    )
+    client = AvraeClient(api_key=api_key)
     sys.stdout.write("::debug:: Fetching data from Avrae...\n")
-    collections = client.get_collections()
+    collections = client.get_collections(collection_ids=collections_config.keys())
     gvars = client.get_gvars()
     results = compare_repository_with_avrae(
         collections=collections,
