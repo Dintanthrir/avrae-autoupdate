@@ -6,5 +6,3 @@ WORKDIR /app
 
 # Install dependencies
 RUN pip install -r requirements.txt --target=/app
-
-CMD ["python", "/app/pull.py"]

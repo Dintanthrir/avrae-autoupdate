@@ -1,5 +1,5 @@
-name: 'Pull from Avrae'
-description: 'Pull changes from the Avrae dashboard'
+name: 'Initialize from Avrae'
+description: 'Update config files to include all available collections and gvars from the Avrae dashboard.'
 author: 'Dintanthrir'
 inputs: 
   collections:
@@ -23,4 +23,4 @@ runs:
     COLLECTIONS_CONFIG: ${{ inputs.collections }}
     GVARS_CONFIG: ${{ inputs.gvars }}
   args:
-    - python /app/pull.py
+    - python /app/initialize.py

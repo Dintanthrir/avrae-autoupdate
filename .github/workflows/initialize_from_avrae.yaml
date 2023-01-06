@@ -1,4 +1,4 @@
-name: Pull changes from Avrae
+name: Initialize config files from Avrae
 
 on:
   workflow_call:
@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: Dintanthrir/avrae-autoupdate/actions/pull@add_github_workflows
+      - uses: Dintanthrir/avrae-autoupdate/actions/initialize@add_github_workflows
         with:
           collections: ${{ inputs.collections }}
           gvars: ${{ inputs.gvars }}
@@ -34,11 +34,11 @@ jobs:
         id: cpr
         uses: peter-evans/create-pull-request@v4
         with:
-          commit-message: Changes pulled from Avrae ${{ github.event.repository.updated_at }}
-          branch: pull-changes-from-avrae
+          commit-message: Configs updated from Avrae ${{ github.event.repository.updated_at }}
+          branch: initialize-configs-from-avrae
           delete-branch: true
-          title: Updates from Avrae
-          body: Update local files to match changes found on the Avrae dashboard.
+          title: Initialize config files from Avrae
+          body: Update config files to include all collections and gvars found on the Avrae dashboard.
       - name: Report pull request results
         if: ${{ steps.cpr.outputs.pull-request-number }}
         run: |
