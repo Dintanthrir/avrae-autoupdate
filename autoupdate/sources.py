@@ -162,16 +162,18 @@ class LocalAliasDoesNotMatchAvrae(_AliasComparisonResultWithAlias, UpdatesAvrae,
             return '\n'.join(diff)
 
     def apply(self, client: AvraeClient):
-        matching_version = client.recent_matching_version(item=self.alias)
-        if not matching_version:
-            with open(self.path, mode='r', encoding='utf-8') as alias_file:
+        with open(self.path, mode='r', encoding='utf-8') as alias_file:
+            code = alias_file.read()
+            matching_version = client.recent_matching_version(item=self.alias, code=code)
+            if not matching_version:
                 new_version = client.create_new_code_version(
                     item=self.alias,
-                    code=alias_file.read()
+                    code=code
                 )
                 client.set_active_code_version(item=self.alias, version=new_version)
-        else:
-            sys.stdout.write(f"::debug::repo matches version {matching_version.version}, skipping.")
+            else:
+                sys.stdout.write(f"::debug::repo matches version {matching_version.version}," \
+                    " skipping.")
 
 class LocalAliasDocsDoNotMatchAvrae(_AliasComparisonResultWithAlias, UpdatesAvrae, DiffableResult):
     """
@@ -293,12 +295,13 @@ class LocalSnippetDoesNotMatchAvrae(
             return '\n'.join(diff)
 
     def apply(self, client: AvraeClient):
-        matching_version = client.recent_matching_version(item=self.snippet)
-        if not matching_version:
-            with open(self.path, mode='r', encoding='utf-8') as snippet_file:
+        with open(self.path, mode='r', encoding='utf-8') as snippet_file:
+            code = snippet_file.read()
+            matching_version = client.recent_matching_version(item=self.snippet, code=code)
+            if not matching_version:
                 new_version = client.create_new_code_version(
                     item=self.snippet,
-                    code=snippet_file.read()
+                    code=code
                 )
                 client.set_active_code_version(item=self.snippet, version=new_version)
 

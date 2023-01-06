@@ -337,7 +337,7 @@ class AvraeClient():
                            f'{json.dumps(response_data, indent=4)}')
         return response_data['data']
 
-    def recent_matching_version(self, item: Alias | Snippet) -> CodeVersion | None:
+    def recent_matching_version(self, item: Alias | Snippet, code: str) -> CodeVersion | None:
         """
         Return the most recent version of a snippet or alias with the same code as the given item.
 
@@ -349,7 +349,7 @@ class AvraeClient():
             session=self.session,
             resource_type='alias' if isinstance(item, Alias) else 'snippet',
             item_id=item.id,
-            code=item.code
+            code=code
         )
 
     def create_new_code_version(self, item: Alias | Snippet, code: str) -> CodeVersion:

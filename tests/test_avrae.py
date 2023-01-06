@@ -134,7 +134,7 @@ def test_avrae_client_recent_matching_version_aliases(requests_mock):
         }
     )
 
-    version = client.recent_matching_version(Alias(
+    alias = Alias(
         name="test",
         code="second try",
         collection_id=collection_id,
@@ -145,37 +145,17 @@ def test_avrae_client_recent_matching_version_aliases(requests_mock):
         subcommand_ids=[],
         subcommands=[],
         parent_id=None,
-        ))
+    )
+
+    version = client.recent_matching_version(alias, code='second try')
     assert version.version == 2
     assert version.is_current is True
 
-    version = client.recent_matching_version(Alias(
-        name="test",
-        code="first try",
-        collection_id=collection_id,
-        id=alias_id,
-        docs="old docs",
-        versions=[],
-        entitlements=[],
-        subcommand_ids=[],
-        subcommands=[],
-        parent_id=None,
-        ))
+    version = client.recent_matching_version(alias, code='first try')
     assert version.version == 1
     assert version.is_current is False
 
-    version = client.recent_matching_version(Alias(
-        name="test",
-        code="unpublished",
-        collection_id=collection_id,
-        id=alias_id,
-        docs="new docs",
-        versions=[],
-        entitlements=[],
-        subcommand_ids=[],
-        subcommands=[],
-        parent_id=None,
-        ))
+    version = client.recent_matching_version(alias, code='unpublished')
     assert version is None
 
 def test_avrae_client_recent_matching_version_aliases_with_long_history(requests_mock):
@@ -198,23 +178,9 @@ def test_avrae_client_recent_matching_version_aliases_with_long_history(requests
             }
         )
 
-    version = client.recent_matching_version(Alias(
+    alias = Alias(
         name="test",
-        code="unpublished",
-        collection_id=collection_id,
-        id=alias_id,
-        docs="new docs",
-        versions=[],
-        entitlements=[],
-        subcommand_ids=[],
-        subcommands=[],
-        parent_id=None,
-        ))
-    assert version is None
-
-    version = client.recent_matching_version(Alias(
-        name="test",
-        code="22",
+        code="1",
         collection_id=collection_id,
         id=alias_id,
         docs="docs",
@@ -223,7 +189,12 @@ def test_avrae_client_recent_matching_version_aliases_with_long_history(requests
         subcommand_ids=[],
         subcommands=[],
         parent_id=None,
-        ))
+    )
+
+    version = client.recent_matching_version(alias, code='unpublished')
+    assert version is None
+
+    version = client.recent_matching_version(alias, code='22')
     assert version.version == 22
 
 def test_avrae_client_recent_matching_version_snippet(requests_mock):
@@ -253,7 +224,7 @@ def test_avrae_client_recent_matching_version_snippet(requests_mock):
         }
     )
 
-    version = client.recent_matching_version(Snippet(
+    snippet = Snippet(
         name="test",
         code="second try",
         collection_id=collection_id,
@@ -261,31 +232,17 @@ def test_avrae_client_recent_matching_version_snippet(requests_mock):
         docs="docs",
         versions=[],
         entitlements=[],
-        ))
+    )
+
+    version = client.recent_matching_version(snippet, code='second try')
     assert version.version == 2
     assert version.is_current is True
 
-    version = client.recent_matching_version(Snippet(
-        name="test",
-        code="first try",
-        collection_id=collection_id,
-        id=snippet_id,
-        docs="old docs",
-        versions=[],
-        entitlements=[],
-        ))
+    version = client.recent_matching_version(snippet, code='first try')
     assert version.version == 1
     assert version.is_current is False
 
-    version = client.recent_matching_version(Snippet(
-        name="test",
-        code="unpublished",
-        collection_id=collection_id,
-        id=snippet_id,
-        docs="new docs",
-        versions=[],
-        entitlements=[],
-        ))
+    version = client.recent_matching_version(snippet, code='unpublished')
     assert version is None
 
 def test_avrae_client_create_new_code_version(requests_mock):
