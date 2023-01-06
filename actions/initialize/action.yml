@@ -22,6 +22,6 @@ runs:
     AVRAE_TOKEN: ${{ inputs.avrae_token }}
     COLLECTIONS_CONFIG: ${{ inputs.collections }}
     GVARS_CONFIG: ${{ inputs.gvars }}
-  entrypoint:
-    - python
-    - /app/initialize.py
+  args:
+    - 'python'
+    - '/app/initialize.py'
