@@ -22,7 +22,7 @@ jobs:
   deploy_changes:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: Dintanthrir/avrae-autoupdate/actions/initialize@main
         with:
           collections: ${{ inputs.collections }}
@@ -32,7 +32,7 @@ jobs:
         run: sudo chown -R $USER:$USER .
       - name: Create a pull request with any changes
         id: cpr
-        uses: peter-evans/create-pull-request@v4
+        uses: peter-evans/create-pull-request@v7
         with:
           commit-message: Configs updated from Avrae ${{ github.event.repository.updated_at }}
           branch: initialize-configs-from-avrae
